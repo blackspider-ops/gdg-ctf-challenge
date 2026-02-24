@@ -14,9 +14,9 @@ interface EventInfo {
 
 export const useEventInfo = () => {
   const [eventInfo, setEventInfo] = useState<EventInfo>({
-    title: 'Decrypt Night — Devs@PSU',
+    title: 'GDG CTF Challenge',
     datetime: '2025-01-15T18:00:00Z',
-    location: 'Innovation Hub, PSU',
+    location: 'Google Developers Group',
     status: 'live',
     allowPlayAccess: true,
     allowNewEntries: true,
@@ -62,9 +62,9 @@ export const useEventInfo = () => {
       }, {} as Record<string, string>) || {}
 
       setEventInfo({
-        title: settings.event_title || 'Decrypt Night — Devs@PSU',
+        title: settings.event_title || 'GDG CTF Challenge',
         datetime: settings.event_datetime || '2025-01-15T18:00:00Z',
-        location: settings.event_location || 'Innovation Hub, PSU',
+        location: settings.event_location || 'Google Developers Group',
         status: (settings.event_status as any) || 'live',
         allowPlayAccess: settings.allow_play_access === 'true',
         allowNewEntries: settings.allow_new_entries === 'true',

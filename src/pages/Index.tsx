@@ -280,7 +280,7 @@ const Index = () => {
             <Logo size="md" />
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            © 2025 Devs@PSU. Built with ❤️ for the developers community.
+            © 2025 Google Developers Group. Built with ❤️ for the developers community.
           </p>
         </div>
       </footer>

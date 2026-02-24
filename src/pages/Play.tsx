@@ -50,7 +50,7 @@ const Play = () => {
                   </Link>
                 </Button>
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" alt="Devs@PSU Logo" className="w-8 h-8" />
+                  <img src="/logo.png" alt="GDG Logo" className="w-8 h-8" />
                   <h1 className="text-2xl font-bold text-gradient-cyber">{title.split(' — ')[0] || title}</h1>
                 </div>
               </div>
@@ -102,7 +102,7 @@ const Play = () => {
                   </Link>
                 </Button>
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" alt="Devs@PSU Logo" className="w-8 h-8" />
+                  <img src="/logo.png" alt="GDG Logo" className="w-8 h-8" />
                   <h1 className="text-2xl font-bold text-gradient-cyber">{title.split(' — ')[0] || title}</h1>
                 </div>
               </div>

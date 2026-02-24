@@ -80,7 +80,7 @@ export const CodeOfConductModal = ({ children }: CodeOfConductModalProps) => {
               <h3 className="font-semibold text-primary mb-2">📞 Reporting</h3>
               <p className="text-muted-foreground">
                 If you witness or experience any violations of this code of conduct, please report them 
-                to the Devs@PSU organizers immediately. All reports will be handled confidentially.
+                to the GDG organizers immediately. All reports will be handled confidentially.
               </p>
             </section>
 

@@ -266,9 +266,9 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
           <div className="flex items-center justify-center gap-2 mb-2">
             <Logo size="md" />
           </div>
-          <DialogTitle className="text-gradient-cyber text-center">Join Decrypt Night</DialogTitle>
+          <DialogTitle className="text-gradient-cyber text-center">Join GDG CTF</DialogTitle>
           <DialogDescription className="text-center">
-            Open your account with your PSU ID to start competing
+            Create your account to start competing
           </DialogDescription>
         </DialogHeader>
 

@@ -25,7 +25,7 @@ export const Logo = ({ size = "md", showText = true, className }: LogoProps) => 
     <div className={cn("flex items-center gap-2", className)}>
       <img 
         src="/logo.png" 
-        alt="Devs@PSU Logo" 
+        alt="GDG Logo" 
         className={cn(sizeClasses[size], "flex-shrink-0")}
       />
       {showText && (
@@ -33,7 +33,7 @@ export const Logo = ({ size = "md", showText = true, className }: LogoProps) => 
           "font-semibold text-primary",
           textSizeClasses[size]
         )}>
-          Devs@PSU
+          GDG
         </span>
       )}
     </div>

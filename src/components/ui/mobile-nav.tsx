@@ -19,7 +19,7 @@ export const MobileNav = ({ title, showUserActions = true }: MobileNavProps) => 
   return (
     <div className="mobile-nav">
       <div className="flex items-center gap-3">
-        <img src="/logo.png" alt="Devs@PSU Logo" className="w-8 h-8" />
+        <img src="/logo.png" alt="GDG Logo" className="w-8 h-8" />
         <span className="font-semibold text-primary text-sm sm:text-base truncate">
           {title.split(' — ')[0] || title}
         </span>
@@ -71,7 +71,7 @@ export const MobileNav = ({ title, showUserActions = true }: MobileNavProps) => 
               <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between pb-4 border-b border-primary/20">
                   <div className="flex items-center gap-3">
-                    <img src="/logo.png" alt="Devs@PSU Logo" className="w-6 h-6" />
+                    <img src="/logo.png" alt="GDG Logo" className="w-6 h-6" />
                     <span className="font-semibold text-primary">Menu</span>
                   </div>
                 </div>
