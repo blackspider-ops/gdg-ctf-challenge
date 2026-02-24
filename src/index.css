@@ -1,0 +1,243 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Decrypt Night - Cybersecurity Competition Design System */
+
+@layer base {
+  :root {
+    /* Dark theme base colors */
+    --background: 222 15% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 15% 10%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 15% 10%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Neon green primary for cybersec theme */
+    --primary: 120 100% 50%;
+    --primary-foreground: 222 15% 8%;
+    --primary-glow: 120 100% 70%;
+
+    /* Dark secondary */
+    --secondary: 222 15% 15%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 222 15% 12%;
+    --muted-foreground: 215 15% 65%;
+
+    /* Neon cyan accent */
+    --accent: 180 100% 50%;
+    --accent-foreground: 222 15% 8%;
+    --accent-glow: 180 100% 70%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 222 15% 20%;
+    --input: 222 15% 15%;
+    --ring: 120 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Custom design tokens */
+    --gradient-cyber: linear-gradient(135deg, hsl(var(--primary) / 0.8), hsl(var(--accent) / 0.6));
+    --gradient-card: linear-gradient(180deg, hsl(var(--card)), hsl(222 15% 8%));
+    --shadow-neon: 0 0 20px hsl(var(--primary) / 0.3);
+    --shadow-cyber: 0 0 40px hsl(var(--accent) / 0.2);
+    --transition-cyber: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Animation variables */
+    --pulse-duration: 2s;
+    --glow-intensity: 0.6;
+
+    /* Mobile-specific variables */
+    --mobile-padding: 1rem;
+    --mobile-header-height: 4rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Cyber scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary/30 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary/50;
+  }
+}
+
+@layer components {
+  /* Cyber button variants */
+  .btn-cyber {
+    @apply bg-gradient-to-r from-primary/20 to-accent/20 border border-primary/50 text-foreground;
+    @apply hover:from-primary/30 hover:to-accent/30 hover:border-primary hover:shadow-neon;
+    @apply transition-all duration-300 relative overflow-hidden;
+  }
+  
+  .btn-cyber::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent;
+    @apply translate-x-[-100%] hover:translate-x-[100%] transition-transform duration-700;
+  }
+
+  .btn-neon {
+    @apply bg-primary text-primary-foreground shadow-neon;
+    @apply hover:shadow-cyber hover:scale-105 transition-all duration-300;
+  }
+
+  .card-cyber {
+    @apply bg-card/50 backdrop-blur-sm border border-primary/20 rounded-2xl;
+    @apply shadow-lg hover:shadow-neon transition-all duration-300;
+  }
+
+  .glow-text {
+    text-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+  }
+
+  .pulse-cyber {
+    animation: pulse-cyber var(--pulse-duration) ease-in-out infinite;
+  }
+
+  /* Mobile-optimized components */
+  .mobile-header {
+    @apply sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60;
+    @apply border-b border-primary/20;
+  }
+
+  .mobile-nav {
+    @apply flex items-center justify-between p-4;
+  }
+
+  .mobile-menu-button {
+    @apply md:hidden p-2 rounded-lg hover:bg-primary/10 transition-colors;
+  }
+
+  .mobile-table-card {
+    @apply block md:hidden space-y-4;
+  }
+
+  .mobile-table-item {
+    @apply bg-card/30 border border-primary/20 rounded-lg p-4 space-y-2;
+  }
+
+  .responsive-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6;
+  }
+
+  .responsive-text-hero {
+    @apply text-4xl sm:text-5xl md:text-6xl lg:text-7xl;
+  }
+
+  .responsive-text-title {
+    @apply text-xl sm:text-2xl md:text-3xl lg:text-4xl;
+  }
+
+  .responsive-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  .responsive-container {
+    @apply container mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Performance optimizations */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  .smooth-scroll {
+    scroll-behavior: smooth;
+  }
+
+  /* Touch optimizations */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-cyber,
+    .animate-pulse-cyber,
+    .animate-glow {
+      animation: none;
+    }
+    
+    .transition-all,
+    .transition-colors,
+    .transition-transform {
+      transition: none;
+    }
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .card-cyber {
+      @apply border-2;
+    }
+    
+    .btn-cyber,
+    .btn-neon {
+      @apply border-2;
+    }
+  }
+
+  /* Print styles */
+  @media print {
+    .mobile-nav,
+    .btn-neon,
+    .btn-cyber {
+      @apply hidden;
+    }
+    
+    .card-cyber {
+      @apply border border-gray-300 shadow-none;
+    }
+  }
+}
+
+@layer utilities {
+  .text-gradient-cyber {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+  
+  .border-gradient {
+    border-image: linear-gradient(90deg, hsl(var(--primary) / 0.5), hsl(var(--accent) / 0.5)) 1;
+  }
+}
+
+/* Keyframes */
+@keyframes pulse-cyber {
+  0%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+  }
+  50% {
+    opacity: 0.8;
+    text-shadow: 0 0 20px hsl(var(--primary) / var(--glow-intensity));
+  }
+}
