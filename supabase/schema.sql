@@ -1,4 +1,4 @@
--- Decrypt Night Competition Database Schema
+-- GDG CTF Competition Database Schema
 -- Run this SQL in your Supabase SQL Editor
 
 -- Enable necessary extensions
@@ -23,10 +23,10 @@ CREATE TABLE profiles (
 CREATE TABLE event_settings (
   id INTEGER PRIMARY KEY DEFAULT 1,
   status event_status NOT NULL DEFAULT 'not_started',
-  event_title TEXT DEFAULT 'Decrypt Night — Devs@PSU',
+  event_title TEXT DEFAULT 'GDG CTF Challenge',
   event_datetime TIMESTAMPTZ,
-  event_location TEXT DEFAULT 'Innovation Hub, PSU',
-  about_md TEXT DEFAULT '**Decrypt Night** is a cybersecurity competition where you solve cryptographic challenges to climb the leaderboard.',
+  event_location TEXT DEFAULT 'Google Developers Group',
+  about_md TEXT DEFAULT '**GDG CTF** is a Capture The Flag competition where you solve cybersecurity and programming challenges to climb the leaderboard.',
   prizes_md TEXT DEFAULT '🥇 **1st Place**: $500 + Trophy\n🥈 **2nd Place**: $300\n🥉 **3rd Place**: $200',
   faq_md TEXT DEFAULT '**Q: Do I need prior experience?**\nA: No! Challenges range from beginner to advanced.\n\n**Q: Can I work in teams?**\nA: This is an individual competition.',
   coc_md TEXT DEFAULT 'Be respectful, no cheating, have fun!',

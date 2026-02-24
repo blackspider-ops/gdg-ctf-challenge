@@ -15,9 +15,9 @@ CREATE TABLE event_settings (
 -- Insert default event settings
 INSERT INTO event_settings (key, value, description) VALUES
   ('event_status', 'not_started', 'Current status of the competition event'),
-  ('event_title', 'Decrypt Night — Devs@PSU', 'Title of the event'),
+  ('event_title', 'GDG CTF Challenge', 'Title of the event'),
   ('event_datetime', '2025-01-15T18:00:00Z', 'Date and time of the event'),
-  ('event_location', 'Innovation Hub, PSU', 'Location of the event'),
+  ('event_location', 'Google Developers Group', 'Location of the event'),
   ('allow_play_access', 'true', 'Whether users can access the play page'),
   ('allow_new_entries', 'true', 'Whether new challenge entries are allowed'),
   ('pause_timers', 'false', 'Whether challenge timers should be paused');

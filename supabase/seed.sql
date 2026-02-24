@@ -1,11 +1,11 @@
--- Seed data for Decrypt Night competition
+-- Seed data for GDG CTF competition
 -- Run this after the schema has been created
 
 -- Insert seed challenges
 INSERT INTO challenges (title, prompt_md, hint_md, answer_pattern, is_regex, points, order_index) VALUES
 (
   'Caesar Cipher',
-  '**Welcome to Decrypt Night!** Your first challenge is a classic Caesar cipher.
+  '**Welcome to GDG CTF!** Your first challenge is a classic Caesar cipher.
 
 Decrypt this message: **WKLV LV D WHVW**
 
