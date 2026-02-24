@@ -1,9 +1,9 @@
 -- Create user_summary table triggers and fix RLS policies
 
--- First, enable RLS on user_summary (if not already enabled)
-ALTER TABLE public.user_summary ENABLE ROW LEVEL SECURITY;
-
--- Drop existing restrictive policies on user_summary
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Anyone can read user summary for leaderboard" ON public.user_summary;
+DROP POLICY IF EXISTS "Only system can modify user summary" ON public.user_summary;
+DROP POLICY IF EXISTS "Only triggers can modify user summary" ON public.user_summary;
 DROP POLICY IF EXISTS "No direct deletes from user summary" ON public.user_summary;
 DROP POLICY IF EXISTS "No direct inserts to user summary" ON public.user_summary;  
 DROP POLICY IF EXISTS "No direct updates to user summary" ON public.user_summary;

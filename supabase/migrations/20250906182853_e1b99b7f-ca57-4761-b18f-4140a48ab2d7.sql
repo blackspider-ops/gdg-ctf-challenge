@@ -130,6 +130,17 @@ CREATE TRIGGER trigger_create_user_summary_on_profile
   FOR EACH ROW
   EXECUTE FUNCTION public.create_user_summary_for_new_profile();
 
--- Enable realtime for user_summary table
+-- Enable realtime for user_summary table (if not already added)
 ALTER TABLE public.user_summary REPLICA IDENTITY FULL;
-ALTER publication supabase_realtime ADD TABLE public.user_summary;
+
+DO $realtime$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public'
+        AND tablename = 'user_summary'
+    ) THEN
+        ALTER publication supabase_realtime ADD TABLE public.user_summary;
+    END IF;
+END $realtime$;
