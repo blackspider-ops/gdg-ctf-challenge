@@ -11,14 +11,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Shield, Zap, Trophy, Users, Clock, Lock, LogOut, User } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 
+console.log('🏠 INDEX PAGE MODULE LOADED');
+
 const Index = () => {
+  console.log('🏠 INDEX COMPONENT RENDERING');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
-  const { title, datetime, location, formatEventDate, formatEventTime, loading: eventLoading } = useEventInfo();
+  const { title, datetime, location, duration, formatEventDate, formatEventTime, loading: eventLoading } = useEventInfo();
   const { toast } = useToast();
+  
+  console.log('🏠 INDEX STATE:', { user: !!user, profile: !!profile, title, eventLoading });
 
   // Handle auth from URL (magic links)
   useEffect(() => {
+    console.log('🏠 INDEX: useEffect running for auth handling');
     const handleAuthFromUrl = async () => {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const urlParams = new URLSearchParams(window.location.search);
@@ -79,6 +85,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {console.log('🏠 INDEX: Rendering JSX')}
       {/* Header with user info */}
       {user && (
         <header className="mobile-header">
@@ -86,36 +93,40 @@ const Index = () => {
         </header>
       )}
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/10" />
-        <div className="relative responsive-container py-12 sm:py-16 md:py-24">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-2 sm:px-4 bg-primary/10 border border-primary/20 rounded-full mb-4 sm:mb-6">
-              <Logo size="sm" />
-              <span className="text-xs sm:text-sm text-primary font-medium">Presents</span>
+      {/* Hero Section - Dark Mode with Google Colors */}
+      <section className="relative overflow-hidden bg-background">
+        {/* Google color accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-google" />
+        
+        <div className="relative responsive-container py-16 sm:py-20 md:py-28">
+          <div className="text-center max-w-5xl mx-auto">
+            {/* GDG Logo Badge */}
+            <div className="inline-flex items-center gap-3 px-5 py-3 bg-card rounded-full mb-8 border border-primary/20">
+              <img src="/logo.png" alt="GDG Logo" className="w-10 h-10 object-contain" />
+              <span className="text-sm font-medium text-foreground">Google Developers Group</span>
             </div>
 
-            <h1 className="responsive-text-hero font-bold mb-4 sm:mb-6 text-gradient-cyber glow-text">
-              {title.split(' — ')[0] || title}
+            <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold mb-6 tracking-tight">
+              <span className="bg-gradient-to-r from-blue-400 via-red-400 to-yellow-400 bg-clip-text text-transparent">
+                CTF Challenge
+              </span>
             </h1>
 
-            <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-3 sm:mb-4">
-              Crack the code. Win the night.
+            <p className="text-xl sm:text-2xl md:text-3xl text-foreground mb-4 font-medium">
+              Capture the Flag. Prove your skills.
             </p>
 
-            <p className="text-base sm:text-lg text-muted-foreground mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
-              Challenge yourself in the ultimate cybersecurity competition. Solve progressive cipher challenges,
-              compete on the real-time leaderboard, and prove your cryptographic skills.
+            <p className="text-base sm:text-lg text-muted-foreground mb-12 max-w-2xl mx-auto px-4">
+              Join Google Developers Group's cybersecurity competition. Solve challenges, climb the leaderboard, and showcase your hacking expertise.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
               {user || profile ? (
                 <>
-                  <Button asChild size="lg" className="btn-neon text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4">
+                  <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-white font-semibold px-8 py-3 rounded-lg transition-all">
                     <Link to="/play">Continue Playing</Link>
                   </Button>
-                  <Button asChild variant="outline" size="lg" className="btn-cyber text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4">
+                  <Button asChild variant="outline" size="lg" className="bg-transparent border-2 border-primary/60 hover:border-primary text-primary hover:bg-primary/10 font-semibold px-8 py-3 rounded-lg transition-all">
                     <Link to="/leaderboard">View Leaderboard</Link>
                   </Button>
                 </>
@@ -123,12 +134,12 @@ const Index = () => {
                 <>
                   <Button
                     size="lg"
-                    className="btn-neon text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4"
+                    className="bg-primary hover:bg-primary/90 text-white font-semibold px-8 py-3 rounded-lg transition-all"
                     onClick={() => setAuthModalOpen(true)}
                   >
-                    Open Account
+                    Get Started
                   </Button>
-                  <Button asChild variant="outline" size="lg" className="btn-cyber text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4">
+                  <Button asChild variant="outline" size="lg" className="bg-transparent border-2 border-primary/60 hover:border-primary text-primary hover:bg-primary/10 font-semibold px-8 py-3 rounded-lg transition-all">
                     <Link to="/leaderboard">View Leaderboard</Link>
                   </Button>
                 </>
@@ -139,30 +150,43 @@ const Index = () => {
       </section>
 
       {/* Event Info */}
-      <section className="py-8 sm:py-12 md:py-16">
+      <section className="py-12 sm:py-16 md:py-20 bg-secondary/50">
         <div className="responsive-container">
-          <Card className="card-cyber max-w-2xl mx-auto text-center">
-            <CardHeader className="px-4 sm:px-6">
-              <CardTitle className="text-xl sm:text-2xl text-gradient-cyber">Event Details</CardTitle>
+          <Card className="max-w-3xl mx-auto bg-card rounded-2xl shadow-google-lg border border-primary/20">
+            <CardHeader className="px-6 sm:px-8 pt-8">
+              <CardTitle className="text-2xl sm:text-3xl font-bold text-foreground text-center">Event Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
-              <div className="space-y-3 sm:space-y-4">
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
-                  <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-                  <span className="text-base sm:text-lg font-medium text-center">
-                    {eventLoading ? 'Loading...' : `${formatEventDate(datetime)} • ${formatEventTime(datetime)}`}
-                  </span>
+            <CardContent className="space-y-6 px-6 sm:px-8 pb-8">
+              <div className="grid sm:grid-cols-2 gap-6">
+                <div className="flex items-start gap-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                  <div className="p-3 bg-blue-500/20 rounded-full">
+                    <Clock className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">When</p>
+                    <p className="text-base font-semibold text-foreground">
+                      {eventLoading ? 'Loading...' : formatEventDate(datetime)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {eventLoading ? '' : formatEventTime(datetime, duration)}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
-                  <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-                  <span className="text-base sm:text-lg font-medium text-center">
-                    {eventLoading ? 'Loading...' : location}
-                  </span>
+                <div className="flex items-start gap-4 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                  <div className="p-3 bg-green-500/20 rounded-full">
+                    <Shield className="w-6 h-6 text-green-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Where</p>
+                    <p className="text-base font-semibold text-foreground">
+                      {eventLoading ? 'Loading...' : location}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="border-t border-primary/20 pt-3 sm:pt-4">
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  Bring your laptop and your best cryptographic instincts!
+              <div className="border-t border-border pt-6 mt-6">
+                <p className="text-base text-muted-foreground text-center">
+                  🚀 Bring your laptop and your best hacking skills!
                 </p>
               </div>
             </CardContent>
@@ -171,12 +195,12 @@ const Index = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-8 sm:py-12 md:py-16">
+      <section className="py-8 sm:py-12 md:py-16 bg-background">
         <div className="responsive-container">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="responsive-text-title font-bold mb-3 sm:mb-4 text-gradient-cyber">How It Works</h2>
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
-              Progressive challenges that unlock as you solve them. Every second counts!
+              Solve CTF challenges, earn points, and climb the leaderboard. Every flag counts!
             </p>
           </div>
 
@@ -190,7 +214,7 @@ const Index = () => {
               </CardHeader>
               <CardContent className="px-4 sm:px-6">
                 <p className="text-sm sm:text-base text-muted-foreground text-center">
-                  Sign up with your PSU email and full name to join the competition.
+                  Sign up with your email and full name to join the CTF competition.
                 </p>
               </CardContent>
             </Card>
@@ -204,7 +228,7 @@ const Index = () => {
               </CardHeader>
               <CardContent className="px-4 sm:px-6">
                 <p className="text-sm sm:text-base text-muted-foreground text-center">
-                  Crack ciphers in sequence. Each solved challenge unlocks the next one.
+                  Solve CTF challenges to capture flags. Each flag earns you points.
                 </p>
               </CardContent>
             </Card>
@@ -240,8 +264,8 @@ const Index = () => {
               </CardHeader>
               <CardContent className="px-4 sm:px-6">
                 <p className="text-sm sm:text-base text-muted-foreground">
-                  Any Penn State student with a valid @psu.edu email address can participate.
-                  No prior cryptography experience required!
+                  Anyone interested in cybersecurity can participate.
+                  No prior CTF experience required!
                 </p>
               </CardContent>
             </Card>
@@ -280,7 +304,7 @@ const Index = () => {
             <Logo size="md" />
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            © 2025 Google Developers Group. Built with ❤️ for the developers community.
+            © 2026 Google Developers Group. Built with ❤️ for the Penn State developer community.
           </p>
         </div>
       </footer>

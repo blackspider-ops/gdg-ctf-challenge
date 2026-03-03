@@ -53,21 +53,17 @@ export const useEventStatus = () => {
     try {
       const { data, error } = await supabase
         .from('event_settings')
-        .select('key, value')
-        .in('key', ['event_status', 'allow_play_access', 'allow_new_entries', 'pause_timers'])
+        .select('*')
+        .eq('id', 1)
+        .single()
 
       if (error) throw error
 
-      const settings = data?.reduce((acc, setting) => {
-        acc[setting.key] = setting.value
-        return acc
-      }, {} as Record<string, string>) || {}
-
       setEventStatus({
-        status: (settings.event_status as any) || 'live',
-        allowPlayAccess: settings.allow_play_access === 'true',
-        allowNewEntries: settings.allow_new_entries === 'true',
-        pauseTimers: settings.pause_timers === 'true',
+        status: data?.status || 'live',
+        allowPlayAccess: true,
+        allowNewEntries: true,
+        pauseTimers: false,
         loading: false
       })
     } catch (error) {

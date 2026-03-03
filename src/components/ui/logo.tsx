@@ -26,7 +26,7 @@ export const Logo = ({ size = "md", showText = true, className }: LogoProps) => 
       <img 
         src="/logo.png" 
         alt="GDG Logo" 
-        className={cn(sizeClasses[size], "flex-shrink-0")}
+        className={cn(sizeClasses[size], "flex-shrink-0 object-contain")}
       />
       {showText && (
         <span className={cn(

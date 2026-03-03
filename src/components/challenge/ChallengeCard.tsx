@@ -233,7 +233,7 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
 
   if (!isUnlocked) {
     return (
-      <Card className="card-cyber opacity-60" data-challenge-id={challenge.id}>
+      <Card className="card-cyber opacity-60 max-w-full" data-challenge-id={challenge.id}>
         <CardHeader className="px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -258,7 +258,7 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
 
   if (progress?.status === 'solved') {
     return (
-      <Card className="card-cyber border-primary/50 bg-primary/5" data-challenge-id={challenge.id}>
+      <Card className="card-cyber border-primary/50 bg-primary/5 max-w-full" data-challenge-id={challenge.id}>
         <CardHeader className="px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -291,7 +291,7 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
   }
 
   return (
-    <Card className={`card-cyber ${isActive ? 'ring-2 ring-primary/50' : ''}`} data-challenge-id={challenge.id}>
+    <Card className={`card-cyber ${isActive ? 'ring-2 ring-primary/50' : ''} max-w-full`} data-challenge-id={challenge.id}>
       <CardHeader className="px-4 sm:px-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>

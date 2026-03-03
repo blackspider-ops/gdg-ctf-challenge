@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { useEmergencyAdmin } from '@/hooks/useEmergencyAdmin'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -11,21 +10,10 @@ interface AuthGuardProps {
 
 export const AuthGuard = ({ children, requireAdmin = false }: AuthGuardProps) => {
   const { user, profile, loading } = useAuth()
-  const { checkEmergencySession } = useEmergencyAdmin()
   const navigate = useNavigate()
   const location = useLocation()
-  
-  // Check for emergency admin session
-  const emergencyAdmin = checkEmergencySession()
-  
-
 
   useEffect(() => {
-    // If emergency admin session exists, allow access immediately
-    if (emergencyAdmin) {
-      return
-    }
-    
     if (loading) {
       return
     }
@@ -47,12 +35,7 @@ export const AuthGuard = ({ children, requireAdmin = false }: AuthGuardProps) =>
         return
       }
     }
-  }, [user, profile, loading, navigate, location.pathname, requireAdmin, emergencyAdmin])
-
-  // If emergency admin session exists, allow access immediately
-  if (emergencyAdmin) {
-    return <>{children}</>
-  }
+  }, [user, profile, loading, navigate, location.pathname, requireAdmin])
 
   if (loading) {
     return (

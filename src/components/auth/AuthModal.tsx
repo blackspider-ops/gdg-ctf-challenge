@@ -3,17 +3,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import { Mail, Loader2, Shield, AlertTriangle } from 'lucide-react'
-import { CodeOfConductModal } from './CodeOfConductModal'
+import { Loader2, Shield, AlertTriangle } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
-import { FallbackLogin } from './FallbackLogin'
-import { useFallbackAuth } from '@/hooks/useFallbackAuth'
-import { useEmergencyAdmin } from '@/hooks/useEmergencyAdmin'
 import { useAuth } from '@/hooks/useAuth'
 
 
@@ -23,55 +18,23 @@ interface AuthModalProps {
 }
 
 export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
-  const [psuId, setPsuId] = useState('')
-  const [fullName, setFullName] = useState('')
-  const [agreedToRules, setAgreedToRules] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [fullName, setFullName] = useState('')
+  const [psuId, setPsuId] = useState('')
   const [otpSent, setOtpSent] = useState(false)
   const [otp, setOtp] = useState('')
-  const [showFallback, setShowFallback] = useState(false)
-  const [supabaseError, setSupabaseError] = useState(false)
-  const [fallbackName, setFallbackName] = useState('')
-  const [fallbackEmail, setFallbackEmail] = useState('')
-  const [fallbackCode, setFallbackCode] = useState('')
-  const [showEmergencyInput, setShowEmergencyInput] = useState(false)
-  const [emergencyCode, setEmergencyCode] = useState('')
   const { toast } = useToast()
-  const { fallbackSettings, loginWithCode } = useFallbackAuth()
-  const { checkEmergencySession, verifyEmergencyCode } = useEmergencyAdmin()
   const { refreshAuth } = useAuth()
 
   const fullEmail = psuId ? `${psuId}@psu.edu` : ''
 
-  const validatePSUId = (id: string) => {
-    return id.length > 0 && /^[a-zA-Z0-9]+$/.test(id)
-  }
-
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validatePSUId(psuId)) {
+    if (!psuId.trim() || !fullName.trim()) {
       toast({
         title: 'Error',
-        description: 'Please enter a valid PSU ID',
-        variant: 'destructive'
-      })
-      return
-    }
-
-    if (!fullName.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please enter your full name',
-        variant: 'destructive'
-      })
-      return
-    }
-
-    if (!agreedToRules) {
-      toast({
-        title: 'Error',
-        description: 'Please agree to the rules and code of conduct',
+        description: 'Please fill in all fields',
         variant: 'destructive'
       })
       return
@@ -80,32 +43,28 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     setLoading(true)
 
     try {
-      // Send OTP code only
-      const { error } = await supabase.auth.signInWithOtp({
+      // Send OTP via Supabase (which now uses Resend SMTP)
+      const { data, error } = await supabase.auth.signInWithOtp({
         email: fullEmail.toLowerCase(),
         options: {
           data: {
             full_name: fullName.trim(),
-            email: fullEmail.toLowerCase()
           },
           shouldCreateUser: true,
-          emailRedirectTo: undefined // Explicitly disable redirect to force OTP
         }
       })
 
       if (error) throw error
 
       setOtpSent(true)
-      setSupabaseError(false)
       toast({
         title: 'Check your email!',
-        description: `We sent you a verification code to ${fullEmail}. Your account will be created after you verify your email.`,
+        description: `We sent a verification code to ${fullEmail}`,
       })
     } catch (error: any) {
-      setSupabaseError(true)
       toast({
-        title: 'Authentication Service Error',
-        description: error.message || 'Failed to send verification code. You can try the fallback login below.',
+        title: 'Error',
+        description: error.message || 'Failed to send verification code',
         variant: 'destructive'
       })
     } finally {
@@ -128,8 +87,6 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     setLoading(true)
 
     try {
-
-
       const { data, error } = await supabase.auth.verifyOtp({
         email: fullEmail.toLowerCase(),
         token: otp,
@@ -138,26 +95,9 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
 
       if (error) throw error
 
-      // Manually ensure the profile exists after successful verification
-      if (data.user) {
-        try {
-          const { error: profileError } = await (supabase as any).rpc('ensure_user_profile', {
-            target_user_id: data.user.id
-          })
-          
-          if (profileError) {
-            console.error('Error ensuring profile:', profileError)
-            // Don't throw here - user is authenticated, profile creation is secondary
-          }
-        } catch (error) {
-          console.error('Profile creation failed:', error)
-          // Continue anyway - user is authenticated
-        }
-      }
-
       toast({
         title: 'Welcome!',
-        description: 'Your account has been created and you are now signed in.',
+        description: 'You are now signed in.',
       })
       onOpenChange(false)
     } catch (error: any) {
@@ -171,93 +111,38 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     }
   }
 
-  const handleFallbackLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    try {
-      // Use the hook's loginWithCode function
-      const user = await loginWithCode(fallbackCode, fallbackName, fallbackEmail)
-      console.log('Fallback user created:', user)
-
-      toast({
-        title: 'Welcome!',
-        description: `Signed in as ${user.full_name}`,
-      })
-
-      // Refresh auth state to pick up the new fallback user
-      console.log('Calling refreshAuth after fallback login')
-      await refreshAuth()
-      onOpenChange(false)
-
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to login with code',
-        variant: 'destructive'
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleEmergencyAdminLogin = async () => {
+  const handleMicrosoftLogin = async () => {
     setLoading(true)
     
     try {
-      const result = await verifyEmergencyCode(emergencyCode, fullEmail, fullName)
-      
-      if (result.success) {
-        toast({
-          title: 'Emergency Admin Access Granted!',
-          description: 'Redirecting to admin panel...',
-        })
-        
-        // Close modal and reload page to ensure auth state is loaded
-        onOpenChange(false)
-        
-        // Show additional instruction
-        setTimeout(() => {
-          toast({
-            title: 'Emergency Admin Ready!',
-            description: 'Page reloading... Then go to /admin',
-            duration: 3000
-          })
-        }, 500)
-        
-        // Reload page to ensure emergency session is loaded
-        setTimeout(() => {
-          window.location.reload()
-        }, 1500)
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Invalid emergency admin code',
-          variant: 'destructive'
-        })
-      }
-    } catch (error: any) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'azure',
+        options: {
+          scopes: 'email',
+          redirectTo: `https://ctf.gdgpsu.dev/`,
+          queryParams: {
+            prompt: 'select_account',
+          }
+        }
+      })
+
+      if (error) throw error
+
+      // The redirect will happen automatically
       toast({
-        title: 'Error',
-        description: error.message || 'Emergency access failed',
+        title: 'Redirecting...',
+        description: 'Taking you to Microsoft login',
+      })
+    } catch (error: any) {
+      console.error('Microsoft login error:', error)
+      toast({
+        title: 'Authentication Error',
+        description: error.message || 'Failed to initiate Microsoft login',
         variant: 'destructive'
       })
-    } finally {
       setLoading(false)
     }
   }
-
-  const handleFallbackSuccess = async (user: any) => {
-    toast({
-      title: 'Welcome!',
-      description: `Signed in as ${user.full_name}`,
-    })
-    // Refresh auth state to pick up the fallback session
-    await refreshAuth()
-    onOpenChange(false)
-  }
-
-
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -268,106 +153,51 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
           </div>
           <DialogTitle className="text-gradient-cyber text-center">Join GDG CTF</DialogTitle>
           <DialogDescription className="text-center">
-            Create your account to start competing
+            Sign in with your Penn State Microsoft account
           </DialogDescription>
         </DialogHeader>
 
-        {supabaseError && (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-orange-800">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-sm font-medium">Authentication Service Issue</span>
+        <Card className="card-cyber">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-xl">Penn State Login</CardTitle>
+            <CardDescription>
+              Sign in with your official PSU account
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button 
+              onClick={handleMicrosoftLogin}
+              className="w-full btn-neon" 
+              disabled={loading}
+              size="lg"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Redirecting to Microsoft...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0 0H10.9091V10.9091H0V0Z" fill="#F25022"/>
+                    <path d="M12.0909 0H23V10.9091H12.0909V0Z" fill="#7FBA00"/>
+                    <path d="M0 12.0909H10.9091V23H0V12.0909Z" fill="#00A4EF"/>
+                    <path d="M12.0909 12.0909H23V23H12.0909V12.0909Z" fill="#FFB900"/>
+                  </svg>
+                  Sign in with Microsoft
+                </>
+              )}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
+              </div>
             </div>
-            <p className="text-sm text-orange-700 mt-1">
-              Having trouble with email verification? Try the fallback login below.
-            </p>
-          </div>
-        )}
 
-        {/* Fallback Login Section - Only show when enabled */}
-        {fallbackSettings.enabled && (
-          <Card className="card-cyber border-orange-500/30">
-            <CardHeader>
-              <CardTitle className="text-orange-400 text-lg">Alternative Login</CardTitle>
-              <CardDescription>
-                Use the access code provided by your administrator
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleFallbackLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fallback-name">Full Name</Label>
-                  <Input
-                    id="fallback-name"
-                    value={fallbackName}
-                    onChange={(e) => setFallbackName(e.target.value)}
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="fallback-psu-id">PSU ID</Label>
-                  <div className="flex">
-                    <Input
-                      id="fallback-psu-id"
-                      value={fallbackEmail.replace('@psu.edu', '')}
-                      onChange={(e) => setFallbackEmail(e.target.value.replace(/[^a-zA-Z0-9]/g, '') + '@psu.edu')}
-                      placeholder="abc123"
-                      className="rounded-r-none border-r-0"
-                      required
-                    />
-                    <div className="px-3 py-2 bg-muted border border-l-0 rounded-r-md flex items-center text-muted-foreground">
-                      @psu.edu
-                    </div>
-                  </div>
-                  {fallbackEmail && (
-                    <p className="text-sm text-muted-foreground">
-                      Email: <span className="text-primary font-medium">{fallbackEmail}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="fallback-code">Access Code</Label>
-                  <Input
-                    id="fallback-code"
-                    value={fallbackCode}
-                    onChange={(e) => setFallbackCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
-                    placeholder="Enter 5-digit code"
-                    maxLength={5}
-                    className="text-center text-lg tracking-widest font-mono"
-                    required
-                  />
-                </div>
-
-                <Button 
-                  type="submit" 
-                  className="w-full btn-neon" 
-                  disabled={loading || fallbackCode.length !== 5}
-                >
-                  {loading ? 'Signing In...' : 'Login with Code'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Only show regular signup when fallback is disabled */}
-        {!fallbackSettings.enabled && (
-          <Card className="card-cyber">
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-xl">
-                {otpSent ? 'Enter Verification Code' : 'Open Account'}
-              </CardTitle>
-              <CardDescription>
-                {otpSent
-                  ? 'Check your email for the verification code. Your account will be created after verification.'
-                  : 'Enter your details to get started. Your account will be created after email verification.'
-                }
-              </CardDescription>
-            </CardHeader>
-          <CardContent>
             {!otpSent ? (
               <form onSubmit={handleSendOtp} className="space-y-4">
                 <div className="space-y-2">
@@ -392,50 +222,20 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
                       className="rounded-r-none border-r-0"
                       required
                     />
-                    <div className="px-3 py-2 bg-muted border border-l-0 rounded-r-md flex items-center text-muted-foreground">
+                    <div className="px-3 py-2 bg-muted border border-l-0 rounded-r-md flex items-center text-muted-foreground text-sm">
                       @psu.edu
                     </div>
                   </div>
-                  {psuId && (
-                    <p className="text-sm text-muted-foreground">
-                      Verification code will be sent to: <span className="text-primary font-medium">{fullEmail}</span>
-                    </p>
-                  )}
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="rules"
-                    checked={agreedToRules}
-                    onCheckedChange={(checked) => setAgreedToRules(checked as boolean)}
-                  />
-                  <Label
-                    htmlFor="rules"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    I agree to the rules and{' '}
-                    <CodeOfConductModal>
-                      <button
-                        type="button"
-                        className="text-primary hover:text-primary/80 underline"
-                      >
-                        code of conduct
-                      </button>
-                    </CodeOfConductModal>
-                  </Label>
-                </div>
-
-                <Button type="submit" className="w-full btn-neon" disabled={loading || !psuId || !fullName || !agreedToRules}>
+                <Button type="submit" className="w-full" disabled={loading || !psuId || !fullName} variant="outline">
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Sending code...
                     </>
                   ) : (
-                    <>
-                      <Mail className="w-4 h-4 mr-2" />
-                      Send Verification Code
-                    </>
+                    'Send Verification Code'
                   )}
                 </Button>
               </form>
@@ -446,16 +246,13 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
                   <Input
                     id="otp"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
+                    onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
                     placeholder="Enter code from email"
-                    className="text-center text-lg tracking-widest"
+                    className="text-center text-lg tracking-widest font-mono"
                     required
                   />
                   <p className="text-sm text-muted-foreground text-center">
-                    Enter the code sent to <span className="text-primary font-medium">{fullEmail}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground text-center">
-                    Tip: If you have an emergency admin code, you can enter it here instead
+                    Code sent to <span className="text-primary font-medium">{fullEmail}</span>
                   </p>
                 </div>
 
@@ -483,78 +280,22 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
                     )}
                   </Button>
                 </div>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full text-sm"
-                  onClick={() => handleSendOtp(new Event('submit') as any)}
-                  disabled={loading}
-                >
-                  Didn't receive the code? Send again
-                </Button>
-
-                {/* Emergency Admin Access Button */}
-                <div className="relative">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute bottom-0 right-0 text-xs text-muted-foreground hover:text-red-400 p-1"
-                    onClick={() => setShowEmergencyInput(!showEmergencyInput)}
-                  >
-                    🚨
-                  </Button>
-                  
-                  {showEmergencyInput && (
-                    <div className="mt-2 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
-                      <div className="space-y-2">
-                        <Label className="text-red-400 text-xs">Emergency Admin Code</Label>
-                        <Input
-                          value={emergencyCode}
-                          onChange={(e) => setEmergencyCode(e.target.value.toUpperCase())}
-                          placeholder="Enter hexadecimal code"
-                          className="text-xs bg-background border-red-500/30"
-                          maxLength={12}
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs"
-                            onClick={() => {
-                              setShowEmergencyInput(false)
-                              setEmergencyCode('')
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="text-xs bg-red-600 hover:bg-red-700"
-                            onClick={handleEmergencyAdminLogin}
-                            disabled={loading || emergencyCode.length !== 12}
-                          >
-                            Emergency Access
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </form>
             )}
+
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                {otpSent ? 'Check your PSU email for the verification code' : 'Secure authentication for Penn State students'}
+              </p>
+            </div>
           </CardContent>
         </Card>
-        )}
 
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Shield className="w-3 h-3" />
-            <span>We use verification codes for secure, passwordless authentication</span>
+            <span>Secure authentication through Microsoft Azure AD</span>
           </div>
-          
-
         </div>
       </DialogContent>
     </Dialog>

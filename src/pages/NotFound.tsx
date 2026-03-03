@@ -20,7 +20,7 @@ const NotFound = () => {
         <Card className="card-cyber max-w-md mx-auto text-center">
           <CardHeader>
             <div className="flex items-center justify-center gap-2 mb-4">
-              <img src="/logo.png" alt="GDG Logo" className="w-12 h-12" />
+              <img src="/logo.png" alt="GDG Logo" className="w-12 h-12 object-contain" />
             </div>
             <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-8 h-8 text-accent" />

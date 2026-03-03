@@ -34,7 +34,7 @@ interface ChallengeProgress {
   challenge?: Challenge
 }
 
-export const useChallenges = () => {
+export const useChallenges = (autoStart: boolean = false) => {
   const { user } = useAuth()
   const { toast } = useToast()
   const [challenges, setChallenges] = useState<Challenge[]>([])
@@ -105,7 +105,8 @@ export const useChallenges = () => {
         setCurrentChallenge(nextChallenge || null)
 
         // Auto-start challenge 1 if it's the current challenge and hasn't been started yet
-        if (nextChallenge && nextChallenge.order_index === 1) {
+        // Only auto-start if explicitly enabled (e.g., on Play page)
+        if (autoStart && nextChallenge && nextChallenge.order_index === 1) {
           const challenge1Progress = (progressData || []).find(p => p.challenge_id === nextChallenge.id)
           if (!challenge1Progress?.started_at) {
             // Start challenge 1 automatically when user first visits play page
@@ -166,18 +167,16 @@ export const useChallenges = () => {
       // Check if submissions are allowed
       const { data: settingsData, error: settingsError } = await supabase
         .from('event_settings')
-        .select('key, value')
-        .in('key', ['event_status', 'allow_new_entries']);
+        .select('status')
+        .eq('id', 1)
+        .single();
 
       if (settingsError) throw settingsError;
 
-      const statusSetting = settingsData?.find(s => s.key === 'event_status');
-      const entriesSetting = settingsData?.find(s => s.key === 'allow_new_entries');
-
-      if (statusSetting?.value !== 'live' || entriesSetting?.value !== 'true') {
+      if (settingsData?.status !== 'live') {
         toast({
           title: 'Submissions Disabled',
-          description: 'New submissions are currently not allowed',
+          description: 'The event is not currently live',
           variant: 'destructive'
         });
         return false;

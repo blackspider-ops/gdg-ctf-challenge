@@ -17,8 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEventInfo } from "@/hooks/useEventInfo";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { useFallbackAuth } from "@/hooks/useFallbackAuth";
-import { useEmergencyAdmin } from "@/hooks/useEmergencyAdmin";
+import { CertificatesSection } from "@/components/admin/CertificatesSection";
 
 interface Challenge {
   id: number
@@ -43,10 +42,18 @@ interface UserSummary {
   current_challenge_index: number
 }
 
-interface EventSetting {
-  key: string
-  value: string
-  description?: string
+interface EventSettings {
+  id: number
+  status: 'not_started' | 'live' | 'paused' | 'ended'
+  event_title: string
+  event_datetime: string | null
+  event_duration_hours: number
+  event_location: string
+  about_md: string
+  prizes_md: string
+  faq_md: string
+  coc_md: string
+  updated_at: string
 }
 
 interface Certificate {
@@ -74,13 +81,11 @@ const Admin = () => {
   const [eventStatus, setEventStatus] = useState<"not_started" | "live" | "paused" | "ended">("live");
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [users, setUsers] = useState<UserSummary[]>([]);
-  const { fallbackSettings, toggleFallbackAuth } = useFallbackAuth();
-  const { EMERGENCY_ADMIN_CODE } = useEmergencyAdmin();
-  const [eventSettings, setEventSettings] = useState<EventSetting[]>([]);
+  const [eventSettings, setEventSettings] = useState<EventSettings | null>(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
-  const [editingSettings, setEditingSettings] = useState<Record<string, string>>({});
+  const [editingSettings, setEditingSettings] = useState<Partial<EventSettings>>({});
   const [certificateForm, setCertificateForm] = useState({
     userId: '',
     type: '',
@@ -97,6 +102,7 @@ const Admin = () => {
     completedParticipants: 0,
     bestTime: "—"
   });
+  const [devModeBypass] = useState(import.meta.env.DEV);
 
   const { toast } = useToast();
   const { title } = useEventInfo();
@@ -149,11 +155,11 @@ const Admin = () => {
         // Get all profiles
         const { data: allProfiles } = await supabase
           .from('profiles')
-          .select('user_id, full_name, email, role');
+          .select('id, full_name, email, role');
 
         const profilesMap = {};
         (allProfiles || []).forEach(p => {
-          profilesMap[p.user_id] = p;
+          profilesMap[p.id] = p;
         });
 
         const transformedUsers = usersData.map(user => ({
@@ -161,7 +167,7 @@ const Admin = () => {
           full_name: profilesMap[user.user_id]?.full_name || `User ${user.user_id.substring(0, 8)}`,
           email: profilesMap[user.user_id]?.email || 'No email',
           role: profilesMap[user.user_id]?.role || 'player',
-          challenges_solved: user.challenges_solved || 0,
+          challenges_solved: user.solved_count || 0,
           total_points: user.total_points || 0,
           total_time_seconds: user.total_time_seconds || 0,
           current_challenge_index: user.current_challenge_index || 1
@@ -173,7 +179,7 @@ const Admin = () => {
         // No user_summary data, create from profiles with challenge progress
         const { data: allProfiles } = await supabase
           .from('profiles')
-          .select('user_id, full_name, email, role');
+          .select('id, full_name, email, role');
 
         if (allProfiles && allProfiles.length > 0) {
           const usersWithProgress = await Promise.all(
@@ -181,13 +187,13 @@ const Admin = () => {
               const { data: progressData } = await supabase
                 .from('challenge_progress')
                 .select('status, duration_seconds')
-                .eq('user_id', profile.user_id);
+                .eq('user_id', profile.id);
 
               const solvedCount = progressData?.filter(p => p.status === 'solved').length || 0;
               const totalTime = progressData?.reduce((sum, p) => sum + (p.duration_seconds || 0), 0) || 0;
 
               return {
-                user_id: profile.user_id,
+                user_id: profile.id,
                 full_name: profile.full_name,
                 email: profile.email,
                 role: profile.role || 'player',
@@ -210,13 +216,15 @@ const Admin = () => {
       // Fetch event settings
       const { data: settingsData, error: settingsError } = await supabase
         .from('event_settings')
-        .select('*');
+        .select('*')
+        .eq('id', 1)
+        .single();
 
       if (settingsError) {
         console.error('Error fetching event settings:', settingsError);
-        setEventSettings([]);
+        setEventSettings(null);
       } else {
-        setEventSettings(settingsData || []);
+        setEventSettings(settingsData);
       }
 
       // Fetch certificates
@@ -233,32 +241,11 @@ const Admin = () => {
           // Get user details for each certificate
           const certificatesWithUsers = await Promise.all(
             certificatesData.map(async (cert) => {
-              // Try both id and user_id columns to find the user
-              let userProfile = null;
-              let userError = null;
-
-              // First try by id
-              const { data: profileById, error: errorById } = await supabase
+              const { data: userProfile, error: userError } = await supabase
                 .from('profiles')
-                .select('id, user_id, full_name, email')
+                .select('id, full_name, email')
                 .eq('id', cert.user_id)
                 .maybeSingle();
-
-              if (profileById) {
-                userProfile = profileById;
-              } else {
-                // Try by user_id if id lookup failed
-                const { data: profileByUserId, error: errorByUserId } = await supabase
-                  .from('profiles')
-                  .select('id, user_id, full_name, email')
-                  .eq('user_id', cert.user_id)
-                  .maybeSingle();
-
-                userProfile = profileByUserId;
-                userError = errorByUserId;
-              }
-
-
 
               if (userError) {
                 console.error('Error fetching user for certificate:', cert.id, userError);
@@ -266,9 +253,9 @@ const Admin = () => {
 
               return {
                 ...cert,
-                title: (cert as any).title || 'Certificate', // Provide default title if missing
-                type: cert.type as 'champion' | 'participation' | 'special', // Cast type to proper union
-                status: cert.status as 'pending' | 'approved' | 'rejected', // Cast status to proper union
+                title: (cert as any).title || 'Certificate',
+                type: cert.type as 'champion' | 'participation' | 'special',
+                status: cert.status as 'pending' | 'approved' | 'rejected',
                 user: userProfile || { full_name: 'Unknown User', email: 'unknown@email.com' }
               };
             })
@@ -280,17 +267,14 @@ const Admin = () => {
       }
 
       // Get current event status from settings (only if not already set)
-      const statusSetting = settingsData?.find(s => s.key === 'event_status');
-      if (statusSetting && statusSetting.value !== eventStatus) {
-        setEventStatus(statusSetting.value as any);
+      if (settingsData && settingsData.status !== eventStatus) {
+        setEventStatus(settingsData.status);
       }
 
-      // Initialize editing settings
-      const settingsObj = {};
-      settingsData?.forEach(setting => {
-        settingsObj[setting.key] = setting.value;
-      });
-      setEditingSettings(settingsObj);
+      // Initialize editing settings with the current event settings
+      if (settingsData) {
+        setEditingSettings(settingsData);
+      }
 
     } catch (error) {
       console.error('Error fetching admin data:', error);
@@ -309,34 +293,13 @@ const Admin = () => {
       // Update the event status
       const { error: statusError } = await supabase
         .from('event_settings')
-        .upsert({
-          key: 'event_status',
-          value: newStatus,
-          description: 'Current status of the competition event'
-        });
+        .update({ status: newStatus })
+        .eq('id', 1);
 
       if (statusError) throw statusError;
 
-      // Also update pause_timers based on the event status
-      const shouldPauseTimers = newStatus === 'paused' || newStatus === 'ended';
-      const { error: pauseError } = await supabase
-        .from('event_settings')
-        .upsert({
-          key: 'pause_timers',
-          value: shouldPauseTimers.toString(),
-          description: 'Whether challenge timers should be paused'
-        });
-
-      if (pauseError) throw pauseError;
-
       // Update local state
       setEventStatus(newStatus);
-
-      // Update editing settings to reflect only the status change
-      setEditingSettings(prev => ({
-        ...prev,
-        event_status: newStatus
-      }));
 
       // Refresh data
       await fetchData();
@@ -489,39 +452,63 @@ const Admin = () => {
 
   const saveChallenge = async (challenge: Partial<Challenge>) => {
     try {
+      console.log('Saving challenge:', challenge);
+      
       if (challenge.id) {
-        // Update existing challenge
-        const { error } = await supabase
+        // Update existing challenge - only include defined values
+        const updateData: any = {};
+        
+        if (challenge.title !== undefined) updateData.title = challenge.title;
+        if (challenge.prompt_md !== undefined) updateData.prompt_md = challenge.prompt_md;
+        if (challenge.hint_md !== undefined) updateData.hint_md = challenge.hint_md || null;
+        if (challenge.answer_pattern !== undefined) updateData.answer_pattern = challenge.answer_pattern;
+        if (challenge.is_regex !== undefined) updateData.is_regex = challenge.is_regex;
+        if (challenge.points !== undefined) updateData.points = challenge.points;
+        if (challenge.is_active !== undefined) updateData.is_active = challenge.is_active;
+        if (challenge.order_index !== undefined) updateData.order_index = challenge.order_index;
+        
+        console.log('Update data:', updateData);
+        
+        const { data, error } = await supabase
           .from('challenges')
-          .update({
-            title: challenge.title,
-            prompt_md: challenge.prompt_md,
-            hint_md: challenge.hint_md,
-            answer_pattern: challenge.answer_pattern,
-            is_regex: challenge.is_regex,
-            points: challenge.points,
-            is_active: challenge.is_active,
-            order_index: challenge.order_index
-          })
-          .eq('id', challenge.id);
+          .update(updateData)
+          .eq('id', challenge.id)
+          .select();
 
-        if (error) throw error;
+        console.log('Update response:', { data, error });
+        
+        if (error) {
+          console.error('Supabase error details:', error);
+          alert(`Error: ${error.message}\nCode: ${error.code}\nDetails: ${error.details}`);
+          throw error;
+        }
       } else {
         // Create new challenge
-        const { error } = await supabase
+        const insertData = {
+          title: challenge.title || '',
+          prompt_md: challenge.prompt_md || '',
+          hint_md: challenge.hint_md || null,
+          answer_pattern: challenge.answer_pattern || '',
+          is_regex: challenge.is_regex || false,
+          points: challenge.points || 100,
+          is_active: challenge.is_active !== false,
+          order_index: challenge.order_index || (challenges.length + 1)
+        };
+        
+        console.log('Insert data:', insertData);
+        
+        const { data, error } = await supabase
           .from('challenges')
-          .insert([{
-            title: challenge.title,
-            prompt_md: challenge.prompt_md,
-            hint_md: challenge.hint_md,
-            answer_pattern: challenge.answer_pattern,
-            is_regex: challenge.is_regex || false,
-            points: challenge.points || 100,
-            is_active: challenge.is_active !== false,
-            order_index: challenge.order_index || (challenges.length + 1)
-          }]);
+          .insert([insertData])
+          .select();
 
-        if (error) throw error;
+        console.log('Insert response:', { data, error });
+        
+        if (error) {
+          console.error('Supabase error details:', error);
+          alert(`Error: ${error.message}\nCode: ${error.code}\nDetails: ${error.details}`);
+          throw error;
+        }
       }
 
       setEditingChallenge(null);
@@ -547,6 +534,7 @@ const Admin = () => {
     }
 
     try {
+      // Delete the challenge
       const { error } = await supabase
         .from('challenges')
         .delete()
@@ -554,11 +542,39 @@ const Admin = () => {
 
       if (error) throw error;
 
+      // Get all remaining challenges
+      const { data: remainingChallenges, error: fetchError } = await supabase
+        .from('challenges')
+        .select('*')
+        .order('order_index');
+
+      if (fetchError) throw fetchError;
+
+      // Renumber all challenges starting from 1
+      if (remainingChallenges && remainingChallenges.length > 0) {
+        for (let i = 0; i < remainingChallenges.length; i++) {
+          const challenge = remainingChallenges[i];
+          const newOrderIndex = i + 1;
+          
+          // Only update if the order_index has changed
+          if (challenge.order_index !== newOrderIndex) {
+            const { error: updateError } = await supabase
+              .from('challenges')
+              .update({ order_index: newOrderIndex })
+              .eq('id', challenge.id);
+
+            if (updateError) {
+              console.error('Error reordering challenge:', updateError);
+            }
+          }
+        }
+      }
+
       await fetchData();
 
       toast({
         title: "Success",
-        description: "Challenge deleted successfully",
+        description: "Challenge deleted and remaining challenges reordered",
       });
     } catch (error) {
       console.error('Error deleting challenge:', error);
@@ -825,18 +841,14 @@ const Admin = () => {
 
   const saveEventSettings = async () => {
     try {
-      const updates = Object.entries(editingSettings).map(([key, value]) => ({
-        key,
-        value,
-        description: eventSettings.find(s => s.key === key)?.description || ''
-      }));
+      if (!eventSettings) return;
 
-      for (const update of updates) {
-        const { error } = await supabase
-          .from('event_settings')
-          .upsert(update);
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from('event_settings')
+        .update(editingSettings)
+        .eq('id', 1);
+
+      if (error) throw error;
 
       await fetchData();
 
@@ -895,24 +907,33 @@ const Admin = () => {
                 </Link>
               </Button>
               <div className="flex items-center gap-3">
-                <img src="/logo.png" alt="GDG Logo" className="w-8 h-8" />
+                <img src="/logo.png" alt="GDG Logo" className="w-8 h-8 object-contain" />
                 <h1 className="text-2xl font-bold text-gradient-cyber">Admin Panel</h1>
               </div>
             </div>
             
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground hidden sm:block">
-                Welcome, <span className="text-primary">{profile?.full_name}</span>
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={signOut}
-                className="btn-cyber"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+              {profile && (
+                <>
+                  <span className="text-sm text-muted-foreground hidden sm:block">
+                    Welcome, <span className="text-primary">{profile.full_name}</span>
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={signOut}
+                    className="btn-cyber"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </>
+              )}
+              {!profile && devModeBypass && (
+                <Badge variant="outline" className="text-accent border-accent/30">
+                  Dev Mode
+                </Badge>
+              )}
             </div>
           </div>
         </header>
@@ -945,7 +966,7 @@ const Admin = () => {
               </Link>
             </Button>
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="GDG Logo" className="w-8 h-8" />
+              <img src="/logo.png" alt="GDG Logo" className="w-8 h-8 object-contain" />
               <h1 className="text-2xl font-bold text-gradient-cyber">Admin Panel</h1>
             </div>
           </div>
@@ -956,19 +977,29 @@ const Admin = () => {
               <span className="font-medium capitalize">{eventStatus.replace('_', ' ')}</span>
             </div>
             
-            <span className="text-sm text-muted-foreground hidden sm:block">
-              Welcome, <span className="text-primary">{profile?.full_name}</span>
-            </span>
+            {profile && (
+              <>
+                <span className="text-sm text-muted-foreground hidden sm:block">
+                  Welcome, <span className="text-primary">{profile.full_name}</span>
+                </span>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={signOut}
+                  className="btn-cyber"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </>
+            )}
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={signOut}
-              className="btn-cyber"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
+            {!profile && devModeBypass && (
+              <Badge variant="outline" className="text-accent border-accent/30">
+                Dev Mode
+              </Badge>
+            )}
           </div>
         </div>
       </header>
@@ -1504,306 +1535,7 @@ const Admin = () => {
 
           {/* Certificates Tab */}
           <TabsContent value="certificates" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gradient-cyber">Certificate Management</h2>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="btn-neon">
-                    <Award className="w-4 h-4 mr-2" />
-                    Issue Certificate
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Issue New Certificate</DialogTitle>
-                    <DialogDescription>
-                      Issue a certificate to a user for their achievements.
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="cert-user">Select User</Label>
-                      <Select
-                        value={certificateForm.userId}
-                        onValueChange={(value) => setCertificateForm(prev => ({ ...prev, userId: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a user..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {users.map((user) => (
-                            <SelectItem key={user.user_id} value={user.user_id}>
-                              {user.full_name} ({user.challenges_solved} solved)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cert-type">Certificate Type</Label>
-                      <Select
-                        value={certificateForm.type}
-                        onValueChange={(value) => setCertificateForm(prev => ({ ...prev, type: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="champion">Champion</SelectItem>
-                          <SelectItem value="participation">Participation</SelectItem>
-                          <SelectItem value="special">Special Recognition</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cert-title">Certificate Title</Label>
-                      <Input
-                        id="cert-title"
-                        value={certificateForm.title}
-                        onChange={(e) => setCertificateForm(prev => ({ ...prev, title: e.target.value }))}
-                        placeholder={`e.g., Champion of ${title.split(' — ')[0] || title} 2025`}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cert-desc">Description (Optional)</Label>
-                      <Textarea
-                        id="cert-desc"
-                        value={certificateForm.description}
-                        onChange={(e) => setCertificateForm(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Additional description or achievements..."
-                        rows={3}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cert-file">Upload Certificate PDF (Optional)</Label>
-                      <Input
-                        id="cert-file"
-                        type="file"
-                        accept=".pdf"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          setCertificateForm(prev => ({ ...prev, file }));
-                        }}
-                        className="cursor-pointer"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Upload a PDF certificate that users can download from their profile
-                      </p>
-                    </div>
-                  </div>
-
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => setCertificateForm({ userId: '', type: '', title: '', description: '', file: null })}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      className="btn-neon"
-                      onClick={issueCertificate}
-                      disabled={uploadingCertificate || !certificateForm.userId || !certificateForm.type || !certificateForm.title}
-                    >
-                      {uploadingCertificate ? 'Uploading...' : 'Issue Certificate'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <Card className="card-cyber">
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-primary/20">
-                      <TableHead>User</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Performance</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {certificates.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          No certificates issued yet.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      certificates.map((certificate) => (
-                        <TableRow key={certificate.id} className="border-primary/10">
-                          <TableCell>
-                            <div className="font-medium">{certificate.user?.full_name}</div>
-                            <div className="text-sm text-muted-foreground">{certificate.user?.email}</div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                certificate.type === 'champion' ? 'text-yellow-400 border-yellow-400/30' :
-                                  certificate.type === 'participation' ? 'text-blue-400 border-blue-400/30' :
-                                    'text-purple-400 border-purple-400/30'
-                              }
-                            >
-                              {certificate.type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">{certificate.title}</div>
-                            {certificate.description && (
-                              <div className="text-sm text-muted-foreground">{certificate.description}</div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={certificate.status === 'approved' ? "default" : certificate.status === 'pending' ? "secondary" : "destructive"}
-                              className={
-                                certificate.status === 'approved' ? "bg-primary/20 text-primary" :
-                                  certificate.status === 'pending' ? "bg-yellow-400/20 text-yellow-400" :
-                                    "bg-red-400/20 text-red-400"
-                              }
-                            >
-                              {certificate.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div>{certificate.challenges_solved}/{certificate.total_challenges} solved</div>
-                              <div className="text-muted-foreground">{certificate.total_points} pts • {formatTime(certificate.total_time_seconds)}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              {certificate.status === 'pending' && (
-                                <>
-                                  <Dialog>
-                                    <DialogTrigger asChild>
-                                      <Button
-                                        size="sm"
-                                        className="btn-neon"
-                                        onClick={() => setApprovingCertificate(certificate.id)}
-                                      >
-                                        Approve
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                      <DialogHeader>
-                                        <DialogTitle>Approve Certificate</DialogTitle>
-                                        <DialogDescription>
-                                          Optionally upload a PDF certificate for the user to download.
-                                        </DialogDescription>
-                                      </DialogHeader>
-                                      <div className="space-y-4">
-                                        <div>
-                                          <Label htmlFor="approval-pdf">Upload Certificate PDF (Optional)</Label>
-                                          <Input
-                                            id="approval-pdf"
-                                            type="file"
-                                            accept=".pdf"
-                                            onChange={(e) => setApprovalFile(e.target.files?.[0] || null)}
-                                            className="mt-2"
-                                          />
-                                        </div>
-                                      </div>
-                                      <DialogFooter>
-                                        <Button variant="outline" onClick={() => {
-                                          setApprovingCertificate(null);
-                                          setApprovalFile(null);
-                                        }}>
-                                          Cancel
-                                        </Button>
-                                        <Button
-                                          className="btn-neon"
-                                          onClick={async () => {
-                                            let certificateUrl = null;
-                                            if (approvalFile) {
-                                              certificateUrl = await uploadCertificatePDF(approvalFile, certificate.id);
-                                            }
-                                            await updateCertificateStatus(certificate.id, 'approved', certificateUrl);
-                                            setApprovingCertificate(null);
-                                            setApprovalFile(null);
-                                          }}
-                                        >
-                                          Approve Certificate
-                                        </Button>
-                                      </DialogFooter>
-                                    </DialogContent>
-                                  </Dialog>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="btn-cyber text-red-400 border-red-400/30"
-                                    onClick={() => updateCertificateStatus(certificate.id, 'rejected')}
-                                  >
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-                              {certificate.status === 'approved' && (
-                                <div className="flex gap-2">
-                                  {certificate.certificate_url ? (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="btn-cyber"
-                                      onClick={() => window.open(certificate.certificate_url, '_blank')}
-                                    >
-                                      <Upload className="w-4 h-4 mr-1" />
-                                      View PDF
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="btn-cyber opacity-50"
-                                      disabled
-                                    >
-                                      No PDF
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
-                              {certificate.status === 'rejected' && (
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="btn-cyber text-red-400 border-red-400/30"
-                                    disabled
-                                  >
-                                    Rejected
-                                  </Button>
-                                </div>
-                              )}
-                              {/* Delete button for all certificates */}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="btn-cyber text-red-400 border-red-400/30 ml-2"
-                                onClick={() => {
-                                  if (confirm('Are you sure you want to delete this certificate?')) {
-                                    deleteCertificate(certificate.id);
-                                  }
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <CertificatesSection users={users} eventTitle={title} />
           </TabsContent>
 
           {/* Settings Tab */}
@@ -1821,172 +1553,157 @@ const Admin = () => {
                 <CardDescription>Configure event settings and behavior</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {eventSettings.length === 0 ? (
-                  <p className="text-muted-foreground">No event settings configured.</p>
+                {!eventSettings ? (
+                  <p className="text-muted-foreground">Loading event settings...</p>
                 ) : (
                   <div className="grid gap-6">
-                    {eventSettings.map((setting) => (
-                      <div key={setting.key} className="space-y-2">
-                        <Label htmlFor={setting.key} className="text-sm font-medium">
-                          {setting.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </Label>
-                        {setting.description && (
-                          <p className="text-sm text-muted-foreground">{setting.description}</p>
-                        )}
-
-                        {setting.key === 'event_status' ? (
-                          <Select
-                            value={editingSettings[setting.key] || setting.value}
-                            onValueChange={(value) => setEditingSettings(prev => ({ ...prev, [setting.key]: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="not_started">Not Started</SelectItem>
-                              <SelectItem value="live">Live</SelectItem>
-                              <SelectItem value="paused">Paused</SelectItem>
-                              <SelectItem value="ended">Ended</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : setting.key.includes('allow_') || setting.key.includes('pause_') ? (
-                          <Select
-                            value={editingSettings[setting.key] || setting.value}
-                            onValueChange={(value) => setEditingSettings(prev => ({ ...prev, [setting.key]: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="true">Yes</SelectItem>
-                              <SelectItem value="false">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : setting.key.includes('datetime') ? (
-                          <div className="space-y-2">
-                            <Input
-                              id={setting.key}
-                              type="datetime-local"
-                              value={(() => {
-                                try {
-                                  const dateValue = editingSettings[setting.key] || setting.value;
-                                  // Handle both UTC and local datetime formats
-                                  if (dateValue.endsWith('Z')) {
-                                    // Convert UTC to local for display
-                                    const utcDate = new Date(dateValue);
-                                    const localDate = new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
-                                    return localDate.toISOString().slice(0, 16);
-                                  } else {
-                                    // Already local time
-                                    return dateValue.slice(0, 16);
-                                  }
-                                } catch (error) {
-                                  console.error('Date parsing error:', error);
-                                  return '';
-                                }
-                              })()}
-                              onChange={(e) => {
-                                // Save as local time, not UTC
-                                const localDateTime = e.target.value;
-                                if (localDateTime) {
-                                  // Don't add Z suffix - keep it as local time
-                                  setEditingSettings(prev => ({ ...prev, [setting.key]: localDateTime + ':00' }));
-                                }
-                              }}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Current: {editingSettings[setting.key] || setting.value}
-                            </p>
-                          </div>
-                        ) : (
-                          <Input
-                            id={setting.key}
-                            value={editingSettings[setting.key] || setting.value}
-                            onChange={(e) => setEditingSettings(prev => ({ ...prev, [setting.key]: e.target.value }))}
-                            placeholder={setting.value}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            {/* Fallback Authentication Card */}
-            <Card className="card-cyber">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-orange-500" />
-                  Fallback Authentication
-                </CardTitle>
-                <CardDescription>
-                  Emergency authentication system for when Supabase is unavailable
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <h4 className="font-medium">Fallback Login</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Allow users to login with a 5-digit code when email auth fails
-                    </p>
-                  </div>
-                  <Button
-                    variant={fallbackSettings.enabled ? "destructive" : "default"}
-                    onClick={async () => {
-                      const result = await toggleFallbackAuth(!fallbackSettings.enabled)
-                      if (result.success) {
-                        toast({
-                          title: fallbackSettings.enabled ? "Fallback Disabled" : "Fallback Enabled",
-                          description: result.code ? `Access code: ${result.code}` : "Fallback authentication disabled"
-                        })
-                      }
-                    }}
-                  >
-                    {fallbackSettings.enabled ? "Disable" : "Enable"}
-                  </Button>
-                </div>
-
-                {fallbackSettings.enabled && (
-                  <div className="p-4 bg-orange-900/20 border border-orange-500/30 rounded-lg">
-                    <h4 className="font-medium text-orange-400 mb-2">Current Access Code</h4>
-                    <div className="flex items-center gap-2">
-                      <code className="px-3 py-2 bg-background border border-primary/30 rounded font-mono text-lg text-primary">
-                        {fallbackSettings.accessCode}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigator.clipboard.writeText(fallbackSettings.accessCode)}
-                      >
-                        Copy
-                      </Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="event_title" className="text-sm font-medium">Event Title</Label>
+                      <Input
+                        id="event_title"
+                        value={editingSettings.event_title ?? eventSettings.event_title}
+                        onChange={(e) => setEditingSettings(prev => ({ ...prev, event_title: e.target.value }))}
+                      />
                     </div>
-                    <p className="text-sm text-orange-300 mt-2">
-                      Share this code with users when email authentication is not working
-                    </p>
-                  </div>
-                )}
 
-                <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
-                  <h4 className="font-medium text-red-400 mb-2">Emergency Admin Code</h4>
-                  <div className="flex items-center gap-2">
-                    <code className="px-3 py-2 bg-background border border-primary/30 rounded font-mono text-lg text-primary">
-                      {EMERGENCY_ADMIN_CODE}
-                    </code>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigator.clipboard.writeText(EMERGENCY_ADMIN_CODE)}
-                    >
-                      Copy
+                    <div className="space-y-2">
+                      <Label htmlFor="event_datetime" className="text-sm font-medium">Event Date & Time</Label>
+                      <Input
+                        id="event_datetime"
+                        type="datetime-local"
+                        value={(() => {
+                          try {
+                            const dateValue = editingSettings.event_datetime ?? eventSettings.event_datetime;
+                            if (!dateValue) return '';
+                            // If it's a UTC timestamp, convert to local time for display
+                            if (dateValue.endsWith('Z')) {
+                              const date = new Date(dateValue);
+                              // Format as YYYY-MM-DDTHH:mm for datetime-local input
+                              const year = date.getFullYear();
+                              const month = String(date.getMonth() + 1).padStart(2, '0');
+                              const day = String(date.getDate()).padStart(2, '0');
+                              const hours = String(date.getHours()).padStart(2, '0');
+                              const minutes = String(date.getMinutes()).padStart(2, '0');
+                              return `${year}-${month}-${day}T${hours}:${minutes}`;
+                            }
+                            // Otherwise assume it's already in the correct format
+                            return dateValue.slice(0, 16);
+                          } catch {
+                            return '';
+                          }
+                        })()}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            // Store as local datetime string (not UTC)
+                            setEditingSettings(prev => ({ ...prev, event_datetime: e.target.value }));
+                          }
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {(() => {
+                          try {
+                            const dateValue = editingSettings.event_datetime ?? eventSettings.event_datetime;
+                            if (!dateValue) return 'No date set';
+                            let date;
+                            if (dateValue.includes('T')) {
+                              const parts = dateValue.split('T');
+                              const dateParts = parts[0].split('-');
+                              const timeParts = parts[1].split(':');
+                              date = new Date(
+                                parseInt(dateParts[0]),
+                                parseInt(dateParts[1]) - 1,
+                                parseInt(dateParts[2]),
+                                parseInt(timeParts[0]),
+                                parseInt(timeParts[1])
+                              );
+                            } else {
+                              date = new Date(dateValue);
+                            }
+                            return date.toLocaleString('en-US', {
+                              month: '2-digit',
+                              day: '2-digit',
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            });
+                          } catch {
+                            return 'Invalid date';
+                          }
+                        })()}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="event_duration" className="text-sm font-medium">Event Duration (hours)</Label>
+                      <Input
+                        id="event_duration"
+                        type="number"
+                        min="0.5"
+                        max="24"
+                        step="0.5"
+                        value={editingSettings.event_duration_hours ?? eventSettings.event_duration_hours ?? 2}
+                        onChange={(e) => setEditingSettings(prev => ({ ...prev, event_duration_hours: parseFloat(e.target.value) || 2 }))}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        How long the event will last (e.g., 1.5 for 1 hour 30 minutes)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="event_location" className="text-sm font-medium">Event Location</Label>
+                      <Input
+                        id="event_location"
+                        value={editingSettings.event_location ?? eventSettings.event_location}
+                        onChange={(e) => setEditingSettings(prev => ({ ...prev, event_location: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="about_md" className="text-sm font-medium">About (Markdown)</Label>
+                      <Textarea
+                        id="about_md"
+                        value={editingSettings.about_md ?? eventSettings.about_md}
+                        onChange={(e) => setEditingSettings(prev => ({ ...prev, about_md: e.target.value }))}
+                        rows={4}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="prizes_md" className="text-sm font-medium">Prizes (Markdown)</Label>
+                      <Textarea
+                        id="prizes_md"
+                        value={editingSettings.prizes_md ?? eventSettings.prizes_md}
+                        onChange={(e) => setEditingSettings(prev => ({ ...prev, prizes_md: e.target.value }))}
+                        rows={4}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="faq_md" className="text-sm font-medium">FAQ (Markdown)</Label>
+                      <Textarea
+                        id="faq_md"
+                        value={editingSettings.faq_md ?? eventSettings.faq_md}
+                        onChange={(e) => setEditingSettings(prev => ({ ...prev, faq_md: e.target.value }))}
+                        rows={4}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="coc_md" className="text-sm font-medium">Code of Conduct (Markdown)</Label>
+                      <Textarea
+                        id="coc_md"
+                        value={editingSettings.coc_md ?? eventSettings.coc_md}
+                        onChange={(e) => setEditingSettings(prev => ({ ...prev, coc_md: e.target.value }))}
+                        rows={4}
+                      />
+                    </div>
+
+                    <Button onClick={saveEventSettings} className="btn-neon">
+                      Save Settings
                     </Button>
                   </div>
-                  <p className="text-sm text-red-300 mt-2">
-                    <strong>Keep this secret!</strong> Users can enter this code during signup to get instant admin access.
-                    Use only in emergencies when Supabase is completely down.
-                  </p>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

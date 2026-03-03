@@ -12,7 +12,7 @@ import { useEventInfo } from "@/hooks/useEventInfo";
 import { ArrowLeft, CheckCircle2, Lock, LogOut, Pause, StopCircle, Clock } from "lucide-react";
 
 const Play = () => {
-  const { challenges, progress, loading, isChallengeUnlocked, getChallengeProgress, currentChallenge, refreshTrigger, calculatePoints } = useChallenges();
+  const { challenges, progress, loading, isChallengeUnlocked, getChallengeProgress, currentChallenge, refreshTrigger, calculatePoints } = useChallenges(true); // Enable auto-start on Play page
   const { profile, signOut } = useAuth();
   const { status: eventStatus, loading: statusLoading } = useEventStatus();
   const { title } = useEventInfo();
@@ -50,7 +50,7 @@ const Play = () => {
                   </Link>
                 </Button>
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" alt="GDG Logo" className="w-8 h-8" />
+                  <img src="/logo.png" alt="GDG Logo" className="w-8 h-8 object-contain" />
                   <h1 className="text-2xl font-bold text-gradient-cyber">{title.split(' — ')[0] || title}</h1>
                 </div>
               </div>
@@ -102,7 +102,7 @@ const Play = () => {
                   </Link>
                 </Button>
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" alt="GDG Logo" className="w-8 h-8" />
+                  <img src="/logo.png" alt="GDG Logo" className="w-8 h-8 object-contain" />
                   <h1 className="text-2xl font-bold text-gradient-cyber">{title.split(' — ')[0] || title}</h1>
                 </div>
               </div>
@@ -149,11 +149,9 @@ const Play = () => {
   // STAGE 1: Event is LIVE - Show the normal quiz interface
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-background">
-
-
-      {/* Paused Banner */}
-      {eventStatus === 'paused' && (
+      <div className="min-h-screen bg-background overflow-x-hidden max-w-full">
+        {/* Paused Banner */}
+        {eventStatus === 'paused' && (
         <div className="bg-accent/20 border-b border-accent/30 p-4 text-center">
           <div className="flex items-center justify-center gap-2">
             <Pause className="w-5 h-5 text-accent" />
@@ -209,7 +207,7 @@ const Play = () => {
       </header>
 
       <div className="responsive-container py-4 sm:py-6 md:py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto px-4">
           {/* Progress and Timer */}
           <div className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 sm:mb-4 gap-2">

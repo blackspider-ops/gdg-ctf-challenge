@@ -10,20 +10,83 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
+      admin_logs: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string | null
+          details: Json | null
+          id: number
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string | null
+          details?: Json | null
+          id?: never
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_logs_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificate_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          html_template: string
+          id: number
+          name: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          html_template: string
+          id?: number
+          name: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          html_template?: string
+          id?: number
+          name?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       certificates: {
         Row: {
           approved_at: string | null
-          approved_by: string | null
+          certificate_url: string | null
           challenges_solved: number
           created_at: string | null
+          description: string | null
           id: number
-          rejected_at: string | null
           requested_at: string | null
           status: string
+          title: string | null
           total_challenges: number
           total_points: number
           total_time_seconds: number
@@ -33,13 +96,14 @@ export type Database = {
         }
         Insert: {
           approved_at?: string | null
-          approved_by?: string | null
+          certificate_url?: string | null
           challenges_solved?: number
           created_at?: string | null
+          description?: string | null
           id?: number
-          rejected_at?: string | null
           requested_at?: string | null
           status?: string
+          title?: string | null
           total_challenges?: number
           total_points?: number
           total_time_seconds?: number
@@ -49,13 +113,14 @@ export type Database = {
         }
         Update: {
           approved_at?: string | null
-          approved_by?: string | null
+          certificate_url?: string | null
           challenges_solved?: number
           created_at?: string | null
+          description?: string | null
           id?: number
-          rejected_at?: string | null
           requested_at?: string | null
           status?: string
+          title?: string | null
           total_challenges?: number
           total_points?: number
           total_time_seconds?: number
@@ -63,46 +128,72 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "certificates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       challenge_progress: {
         Row: {
           attempts: number
           challenge_id: number
-          created_at: string
+          created_at: string | null
           duration_seconds: number | null
+          hints_used: number
           id: number
           incorrect_attempts: number
+          is_paused: boolean
+          paused_at: string | null
+          pauses_used: number
           solved_at: string | null
-          started_at: string
-          status: string
-          updated_at: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["challenge_status"]
+          tab_switch_penalties: number
+          total_paused_seconds: number
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           attempts?: number
           challenge_id: number
-          created_at?: string
+          created_at?: string | null
           duration_seconds?: number | null
-          id?: number
+          hints_used?: number
+          id?: never
           incorrect_attempts?: number
+          is_paused?: boolean
+          paused_at?: string | null
+          pauses_used?: number
           solved_at?: string | null
-          started_at?: string
-          status?: string
-          updated_at?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["challenge_status"]
+          tab_switch_penalties?: number
+          total_paused_seconds?: number
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           attempts?: number
           challenge_id?: number
-          created_at?: string
+          created_at?: string | null
           duration_seconds?: number | null
-          id?: number
+          hints_used?: number
+          id?: never
           incorrect_attempts?: number
+          is_paused?: boolean
+          paused_at?: string | null
+          pauses_used?: number
           solved_at?: string | null
-          started_at?: string
-          status?: string
-          updated_at?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["challenge_status"]
+          tab_switch_penalties?: number
+          total_paused_seconds?: number
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -113,185 +204,223 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "challenge_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       challenges: {
         Row: {
           answer_pattern: string
-          created_at: string
+          created_at: string | null
+          file_name: string | null
+          file_size: number | null
+          file_url: string | null
           hint_md: string | null
           id: number
+          image_name: string | null
+          image_url: string | null
           is_active: boolean
           is_regex: boolean
           order_index: number
           points: number
           prompt_md: string
           title: string
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           answer_pattern: string
-          created_at?: string
+          created_at?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
           hint_md?: string | null
-          id?: number
+          id?: never
+          image_name?: string | null
+          image_url?: string | null
           is_active?: boolean
           is_regex?: boolean
           order_index: number
           points?: number
           prompt_md: string
           title: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           answer_pattern?: string
-          created_at?: string
+          created_at?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_url?: string | null
           hint_md?: string | null
-          id?: number
+          id?: never
+          image_name?: string | null
+          image_url?: string | null
           is_active?: boolean
           is_regex?: boolean
           order_index?: number
           points?: number
           prompt_md?: string
           title?: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
       event_settings: {
         Row: {
-          created_at: string
-          description: string | null
+          about_md: string | null
+          coc_md: string | null
+          event_datetime: string | null
+          event_duration_hours: number | null
+          event_location: string | null
+          event_title: string | null
+          faq_md: string | null
           id: number
-          key: string
-          updated_at: string
-          value: string
+          prizes_md: string | null
+          status: Database["public"]["Enums"]["event_status"]
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
-          description?: string | null
+          about_md?: string | null
+          coc_md?: string | null
+          event_datetime?: string | null
+          event_duration_hours?: number | null
+          event_location?: string | null
+          event_title?: string | null
+          faq_md?: string | null
           id?: number
-          key: string
-          updated_at?: string
-          value: string
+          prizes_md?: string | null
+          status?: Database["public"]["Enums"]["event_status"]
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
-          description?: string | null
+          about_md?: string | null
+          coc_md?: string | null
+          event_datetime?: string | null
+          event_duration_hours?: number | null
+          event_location?: string | null
+          event_title?: string | null
+          faq_md?: string | null
           id?: number
-          key?: string
-          updated_at?: string
-          value?: string
+          prizes_md?: string | null
+          status?: Database["public"]["Enums"]["event_status"]
+          updated_at?: string | null
         }
         Relationships: []
       }
       profiles: {
         Row: {
-          created_at: string
+          created_at: string | null
           email: string
           full_name: string
           id: string
-          role: Database["public"]["Enums"]["app_role"]
-          updated_at: string
-          user_id: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           email: string
           full_name: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          updated_at?: string
-          user_id: string
+          id: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           email?: string
           full_name?: string
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          updated_at?: string
-          user_id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
         }
         Relationships: []
       }
       user_summary: {
         Row: {
-          challenges_solved: number
-          created_at: string
-          current_challenge_index: number
-          email: string
-          full_name: string
+          current_challenge_index: number | null
           last_solve_at: string | null
-          role: Database["public"]["Enums"]["app_role"]
+          solved_count: number
           total_points: number
           total_time_seconds: number
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          challenges_solved?: number
-          created_at?: string
-          current_challenge_index?: number
-          email?: string
-          full_name?: string
+          current_challenge_index?: number | null
           last_solve_at?: string | null
-          role?: Database["public"]["Enums"]["app_role"]
+          solved_count?: number
           total_points?: number
           total_time_seconds?: number
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
-          challenges_solved?: number
-          created_at?: string
-          current_challenge_index?: number
-          email?: string
-          full_name?: string
+          current_challenge_index?: number | null
           last_solve_at?: string | null
-          role?: Database["public"]["Enums"]["app_role"]
+          solved_count?: number
           total_points?: number
           total_time_seconds?: number
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_summary_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
-      certificate_requests: {
-        Row: {
-          approved_at: string | null
-          approved_by: string | null
-          challenges_solved: number | null
-          created_at: string | null
-          id: number | null
-          rejected_at: string | null
-          requested_at: string | null
-          status: string | null
-          total_challenges: number | null
-          total_points: number | null
-          total_time_seconds: number | null
-          type: string | null
-          updated_at: string | null
-          user_email: string | null
-          user_id: string | null
-          user_name: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
-      calculate_challenge_points: {
+      delete_user_completely: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
+      get_challenge_file_url: {
+        Args: { challenge_id_param: number }
+        Returns: string
+      }
+      is_admin: { Args: never; Returns: boolean }
+      reset_all_progress: { Args: never; Returns: undefined }
+      reset_user_progress: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
+      set_owner_by_email: { Args: { owner_email: string }; Returns: string }
+      update_user_role: {
         Args: {
-          base_points: number
-          duration_seconds: number
-          incorrect_attempts: number
+          new_role: Database["public"]["Enums"]["user_role"]
+          target_user_id: string
         }
-        Returns: number
+        Returns: undefined
+      }
+      upsert_challenge_progress: {
+        Args: {
+          p_attempts: number
+          p_challenge_id: number
+          p_hints_used: number
+          p_incorrect_attempts: number
+          p_started_at: string
+          p_status: Database["public"]["Enums"]["challenge_status"]
+          p_user_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
-      app_role: "player" | "admin" | "owner"
+      challenge_status: "in_progress" | "solved" | "given_up"
+      event_status: "not_started" | "live" | "paused" | "ended"
+      user_role: "player" | "admin" | "owner"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -419,7 +548,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["player", "admin", "owner"],
+      challenge_status: ["in_progress", "solved", "given_up"],
+      event_status: ["not_started", "live", "paused", "ended"],
+      user_role: ["player", "admin", "owner"],
     },
   },
 } as const

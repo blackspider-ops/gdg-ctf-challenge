@@ -5,6 +5,7 @@ interface EventInfo {
   title: string
   datetime: string
   location: string
+  duration: number
   status: 'not_started' | 'live' | 'paused' | 'ended'
   allowPlayAccess: boolean
   allowNewEntries: boolean
@@ -13,10 +14,12 @@ interface EventInfo {
 }
 
 export const useEventInfo = () => {
+  console.log('🎪 useEventInfo: Hook initializing');
   const [eventInfo, setEventInfo] = useState<EventInfo>({
     title: 'GDG CTF Challenge',
     datetime: '2025-01-15T18:00:00Z',
     location: 'Google Developers Group',
+    duration: 2,
     status: 'live',
     allowPlayAccess: true,
     allowNewEntries: true,
@@ -25,6 +28,7 @@ export const useEventInfo = () => {
   })
 
   useEffect(() => {
+    console.log('🎪 useEventInfo: useEffect running, fetching event info');
     fetchEventInfo()
 
     // Set up real-time subscription for event info changes
@@ -49,26 +53,29 @@ export const useEventInfo = () => {
   }, [])
 
   const fetchEventInfo = async () => {
+    console.log('🎪 useEventInfo: fetchEventInfo called');
     try {
+      console.log('🎪 useEventInfo: Querying Supabase...');
       const { data, error } = await supabase
         .from('event_settings')
-        .select('key, value')
+        .select('*')
+        .eq('id', 1)
+        .single()
 
-      if (error) throw error
+      console.log('🎪 useEventInfo: Supabase response:', { data, error });
 
-      const settings = data?.reduce((acc, setting) => {
-        acc[setting.key] = setting.value
-        return acc
-      }, {} as Record<string, string>) || {}
+      if (error) throw error;
 
+      console.log('🎪 useEventInfo: Setting event info with data:', data);
       setEventInfo({
-        title: settings.event_title || 'GDG CTF Challenge',
-        datetime: settings.event_datetime || '2025-01-15T18:00:00Z',
-        location: settings.event_location || 'Google Developers Group',
-        status: (settings.event_status as any) || 'live',
-        allowPlayAccess: settings.allow_play_access === 'true',
-        allowNewEntries: settings.allow_new_entries === 'true',
-        pauseTimers: settings.pause_timers === 'true',
+        title: data?.event_title || 'GDG CTF Challenge',
+        datetime: data?.event_datetime || '2025-01-15T18:00:00Z',
+        location: data?.event_location || 'Google Developers Group',
+        duration: data?.event_duration_hours || 2,
+        status: data?.status || 'live',
+        allowPlayAccess: true,
+        allowNewEntries: true,
+        pauseTimers: false,
         loading: false
       })
     } catch (error) {
@@ -96,12 +103,22 @@ export const useEventInfo = () => {
 
   const formatEventDate = (datetime: string) => {
     try {
-      // Handle timezone consistently with formatEventTime
+      // Parse datetime string as local time
       let date;
-      if (datetime.endsWith('Z') || datetime.includes('+') || datetime.includes('-')) {
-        date = new Date(datetime);
+      if (datetime.includes('T')) {
+        // Format: YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss
+        const parts = datetime.split('T');
+        const dateParts = parts[0].split('-');
+        const timeParts = parts[1].split(':');
+        date = new Date(
+          parseInt(dateParts[0]), // year
+          parseInt(dateParts[1]) - 1, // month (0-indexed)
+          parseInt(dateParts[2]), // day
+          parseInt(timeParts[0]), // hours
+          parseInt(timeParts[1]) // minutes
+        );
       } else {
-        date = new Date(datetime + (datetime.includes('T') ? '' : 'T00:00:00'));
+        date = new Date(datetime);
       }
       
       return date.toLocaleDateString('en-US', {
@@ -114,19 +131,27 @@ export const useEventInfo = () => {
     }
   }
 
-  const formatEventTime = (datetime: string) => {
+  const formatEventTime = (datetime: string, durationHours: number = 2) => {
     try {
-      // If the datetime doesn't end with Z, treat it as local time
+      // Parse datetime string as local time
       let date;
-      if (datetime.endsWith('Z') || datetime.includes('+') || datetime.includes('-')) {
-        // It's already in UTC or has timezone info
-        date = new Date(datetime);
+      if (datetime.includes('T')) {
+        // Format: YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss
+        const parts = datetime.split('T');
+        const dateParts = parts[0].split('-');
+        const timeParts = parts[1].split(':');
+        date = new Date(
+          parseInt(dateParts[0]), // year
+          parseInt(dateParts[1]) - 1, // month (0-indexed)
+          parseInt(dateParts[2]), // day
+          parseInt(timeParts[0]), // hours
+          parseInt(timeParts[1]) // minutes
+        );
       } else {
-        // Treat as local time
-        date = new Date(datetime + (datetime.includes('T') ? '' : 'T00:00:00'));
+        date = new Date(datetime);
       }
       
-      const endTime = new Date(date.getTime() + 2 * 60 * 60 * 1000) // Add 2 hours
+      const endTime = new Date(date.getTime() + durationHours * 60 * 60 * 1000) // Add duration hours
       return `${date.toLocaleTimeString('en-US', { 
         hour: 'numeric', 
         minute: '2-digit', 

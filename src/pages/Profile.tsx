@@ -96,7 +96,7 @@ const Profile = () => {
       const { error } = await supabase
         .from('profiles')
         .update({ full_name: displayName.trim() })
-        .eq('user_id', user.id);
+        .eq('id', user.id);
         
       if (error) throw error;
       

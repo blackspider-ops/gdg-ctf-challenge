@@ -44,13 +44,19 @@ export const useLeaderboard = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      // Try to fetch with join first
+      // Fetch user_summary with profiles join - only show users who have started playing
       const { data: usersWithProfiles, error: joinError } = await supabase
         .from('user_summary')
         .select(`
-          *,
-          profiles!inner(user_id, full_name, email, role)
+          user_id,
+          solved_count,
+          total_points,
+          total_time_seconds,
+          last_solve_at,
+          current_challenge_index,
+          profiles(id, full_name, email, role)
         `)
+        .gt('solved_count', 0) // Only show users who have solved at least 1 challenge
         .order('total_points', { ascending: false })
         .order('total_time_seconds', { ascending: true })
         .order('last_solve_at', { ascending: true })
@@ -78,6 +84,7 @@ export const useLeaderboard = () => {
         const { data, error } = await supabase
           .from('user_summary')
           .select('*')
+          .gt('solved_count', 0) // Only show users who have solved at least 1 challenge
           .order('total_points', { ascending: false })
           .order('total_time_seconds', { ascending: true })
           .order('last_solve_at', { ascending: true })
@@ -88,11 +95,11 @@ export const useLeaderboard = () => {
         // Get all profiles
         const { data: allProfiles } = await supabase
           .from('profiles')
-          .select('user_id, full_name, email, role')
+          .select('id, full_name, email, role')
 
         const profilesMap = {};
         (allProfiles || []).forEach(p => {
-          profilesMap[p.user_id] = p;
+          profilesMap[p.id] = p;
         });
 
         // Transform the data to match our interface
