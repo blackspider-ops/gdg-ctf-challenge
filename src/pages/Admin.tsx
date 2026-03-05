@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Settings, Users, Trophy, Play, Pause, RotateCcw, Edit, Trash2, Plus, Award, StopCircle, Upload, UserX, Shield, LogOut } from "lucide-react";
+import { ArrowLeft, Settings, Users, Trophy, Play, Pause, RotateCcw, Edit, Trash2, Plus, Award, StopCircle, Upload, UserX, Shield, LogOut, GripVertical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useEventInfo } from "@/hooks/useEventInfo";
@@ -89,6 +89,7 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
   const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
+  const [draggedChallenge, setDraggedChallenge] = useState<Challenge | null>(null);
   const [editingSettings, setEditingSettings] = useState<Partial<EventSettings>>({});
   const [certificateForm, setCertificateForm] = useState({
     userId: '',
@@ -593,6 +594,50 @@ const Admin = () => {
       toast({
         title: "Error",
         description: "Failed to delete challenge",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const reorderChallenges = async (draggedId: number, targetId: number) => {
+    try {
+      const draggedIndex = challenges.findIndex(c => c.id === draggedId);
+      const targetIndex = challenges.findIndex(c => c.id === targetId);
+
+      if (draggedIndex === -1 || targetIndex === -1) return;
+
+      // Create new order
+      const reordered = [...challenges];
+      const [removed] = reordered.splice(draggedIndex, 1);
+      reordered.splice(targetIndex, 0, removed);
+
+      // Update order_index for all affected challenges
+      const updates = reordered.map((challenge, index) => ({
+        id: challenge.id,
+        order_index: index + 1
+      }));
+
+      // Update in database
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('challenges')
+          .update({ order_index: update.order_index })
+          .eq('id', update.id);
+
+        if (error) throw error;
+      }
+
+      await fetchData();
+
+      toast({
+        title: "Success",
+        description: "Challenge order updated",
+      });
+    } catch (error) {
+      console.error('Error reordering challenges:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reorder challenges",
         variant: "destructive"
       });
     }
@@ -1363,11 +1408,40 @@ const Admin = () => {
                       </TableRow>
                     ) : (
                       challenges.map((challenge) => (
-                        <TableRow key={challenge.id} className="border-primary/10">
+                        <TableRow 
+                          key={challenge.id} 
+                          className="border-primary/10 cursor-move hover:bg-primary/5"
+                          draggable
+                          onDragStart={(e) => {
+                            setDraggedChallenge(challenge);
+                            e.currentTarget.style.opacity = '0.5';
+                          }}
+                          onDragEnd={(e) => {
+                            e.currentTarget.style.opacity = '1';
+                            setDraggedChallenge(null);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.style.borderTop = '2px solid #4285F4';
+                          }}
+                          onDragLeave={(e) => {
+                            e.currentTarget.style.borderTop = '';
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.style.borderTop = '';
+                            if (draggedChallenge && draggedChallenge.id !== challenge.id) {
+                              reorderChallenges(draggedChallenge.id, challenge.id);
+                            }
+                          }}
+                        >
                           <TableCell>
-                            <Badge variant="outline" className="text-accent border-accent/30">
-                              #{challenge.order_index}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                              <Badge variant="outline" className="text-accent border-accent/30">
+                                #{challenge.order_index}
+                              </Badge>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="font-medium">{challenge.title}</div>
