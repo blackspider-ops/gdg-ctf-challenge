@@ -1035,6 +1035,14 @@ const Admin = () => {
                   <div className="flex gap-2">
                     <Button
                       size="sm"
+                      className={eventStatus === "not_started" ? "btn-neon" : "btn-cyber"}
+                      variant={eventStatus === "not_started" ? "default" : "outline"}
+                      onClick={() => updateEventStatus("not_started")}
+                    >
+                      Not Started
+                    </Button>
+                    <Button
+                      size="sm"
                       className={eventStatus === "live" ? "btn-neon" : "btn-cyber"}
                       variant={eventStatus === "live" ? "default" : "outline"}
                       onClick={() => updateEventStatus("live")}
