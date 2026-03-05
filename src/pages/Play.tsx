@@ -26,7 +26,27 @@ const Play = () => {
     if (eventStatus === 'not_started' && eventDatetime) {
       const updateCountdown = () => {
         const now = new Date().getTime();
-        const eventTime = new Date(eventDatetime).getTime();
+        
+        // Parse the datetime as local time, not UTC
+        let eventTime;
+        if (eventDatetime.includes('T') && !eventDatetime.endsWith('Z')) {
+          // Format: YYYY-MM-DDTHH:mm (local time)
+          const parts = eventDatetime.split('T');
+          const dateParts = parts[0].split('-');
+          const timeParts = parts[1].split(':');
+          const eventDate = new Date(
+            parseInt(dateParts[0]), // year
+            parseInt(dateParts[1]) - 1, // month (0-indexed)
+            parseInt(dateParts[2]), // day
+            parseInt(timeParts[0]), // hours
+            parseInt(timeParts[1]) // minutes
+          );
+          eventTime = eventDate.getTime();
+        } else {
+          // Fallback to standard parsing
+          eventTime = new Date(eventDatetime).getTime();
+        }
+        
         const distance = eventTime - now;
 
         if (distance < 0) {
@@ -162,15 +182,37 @@ const Play = () => {
                     <div className="space-y-2">
                       <div className="text-sm text-muted-foreground">Event starts on</div>
                       <div className="text-lg font-medium text-primary">
-                        {new Date(eventDatetime).toLocaleString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          timeZoneName: 'short'
-                        })}
+                        {(() => {
+                          try {
+                            let date;
+                            if (eventDatetime.includes('T') && !eventDatetime.endsWith('Z')) {
+                              // Parse as local time
+                              const parts = eventDatetime.split('T');
+                              const dateParts = parts[0].split('-');
+                              const timeParts = parts[1].split(':');
+                              date = new Date(
+                                parseInt(dateParts[0]),
+                                parseInt(dateParts[1]) - 1,
+                                parseInt(dateParts[2]),
+                                parseInt(timeParts[0]),
+                                parseInt(timeParts[1])
+                              );
+                            } else {
+                              date = new Date(eventDatetime);
+                            }
+                            return date.toLocaleString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              timeZoneName: 'short'
+                            });
+                          } catch {
+                            return 'TBD';
+                          }
+                        })()}
                       </div>
                       {timeUntilStart && (
                         <div className="mt-4 p-4 bg-gradient-to-br from-accent/10 to-primary/10 rounded-lg border border-accent/20">
