@@ -342,19 +342,37 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
               <p className="text-xs sm:text-sm text-muted-foreground mb-2">{challenge.attachment_description}</p>
             )}
             <Button
-              asChild
               variant="outline"
               size="sm"
               className="btn-cyber"
+              onClick={async () => {
+                try {
+                  const response = await fetch(
+                    `${supabase.supabaseUrl}/functions/v1/download-challenge-file?challenge=${challenge.id}`,
+                    {
+                      headers: {
+                        'Authorization': `Bearer ${supabase.supabaseKey}`,
+                      }
+                    }
+                  );
+                  
+                  if (!response.ok) throw new Error('Download failed');
+                  
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = challenge.attachment_filename || 'challenge-file';
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                } catch (error) {
+                  console.error('Download error:', error);
+                }
+              }}
             >
-              <a 
-                href={`${supabase.supabaseUrl}/functions/v1/download-challenge-file?challenge=${challenge.id}`}
-                download={challenge.attachment_filename}
-                target="_blank" 
-                rel="noopener noreferrer"
-              >
-                Download {challenge.attachment_filename || 'File'}
-              </a>
+              Download {challenge.attachment_filename || 'File'}
             </Button>
           </div>
         )}
