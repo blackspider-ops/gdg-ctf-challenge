@@ -108,11 +108,13 @@ const Admin = () => {
   const { title } = useEventInfo();
 
   const calculateStats = (userData: UserSummary[], challengeData: Challenge[]) => {
-    const totalParticipants = userData.length;
+    // Only count players, not admins or owners
+    const players = userData.filter(u => u.role === 'player');
+    const totalParticipants = players.length;
     const activeChallenges = challengeData?.filter(c => c.is_active).length || 0;
     const totalChallenges = challengeData?.filter(c => c.is_active).length || 1;
-    const completedParticipants = userData.filter(u => u.challenges_solved === totalChallenges).length;
-    const bestTimeUser = userData.find(u => u.challenges_solved === Math.max(...userData.map(u => u.challenges_solved)));
+    const completedParticipants = players.filter(u => u.challenges_solved === totalChallenges).length;
+    const bestTimeUser = players.find(u => u.challenges_solved === Math.max(...players.map(u => u.challenges_solved)));
     const bestTime = bestTimeUser ? formatTime(bestTimeUser.total_time_seconds) : "—";
 
     setStats({
