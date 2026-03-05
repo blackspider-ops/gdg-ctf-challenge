@@ -17,6 +17,9 @@ interface Challenge {
   is_active: boolean
   created_at: string
   updated_at: string
+  attachment_url?: string
+  attachment_filename?: string
+  attachment_description?: string
 }
 
 interface ChallengeProgress {
@@ -329,6 +332,27 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
         <div className="prose prose-invert max-w-none">
           <p className="text-base sm:text-lg leading-relaxed">{extractCodeBlocks(challenge.prompt_md)}</p>
         </div>
+
+        {challenge.attachment_url && (
+          <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 sm:p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium text-primary">📎 File Attachment</span>
+            </div>
+            {challenge.attachment_description && (
+              <p className="text-xs sm:text-sm text-muted-foreground mb-2">{challenge.attachment_description}</p>
+            )}
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="btn-cyber"
+            >
+              <a href={challenge.attachment_url} download={challenge.attachment_filename} target="_blank" rel="noopener noreferrer">
+                Download {challenge.attachment_filename || 'File'}
+              </a>
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

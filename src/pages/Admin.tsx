@@ -88,6 +88,7 @@ const Admin = () => {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
+  const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
   const [editingSettings, setEditingSettings] = useState<Partial<EventSettings>>({});
   const [certificateForm, setCertificateForm] = useState({
     userId: '',
@@ -1114,9 +1115,12 @@ const Admin = () => {
           <TabsContent value="challenges" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gradient-cyber">Challenge Management</h2>
-              <Dialog>
+              <Dialog open={challengeDialogOpen} onOpenChange={setChallengeDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="btn-neon" onClick={() => setEditingChallenge({} as Challenge)}>
+                  <Button className="btn-neon" onClick={() => {
+                    setEditingChallenge({} as Challenge);
+                    setChallengeDialogOpen(true);
+                  }}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Challenge
                   </Button>
@@ -1301,12 +1305,20 @@ const Admin = () => {
                   </div>
 
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setEditingChallenge(null)}>
+                    <Button variant="outline" onClick={() => {
+                      setEditingChallenge(null);
+                      setChallengeDialogOpen(false);
+                    }}>
                       Cancel
                     </Button>
                     <Button
                       className="btn-neon"
-                      onClick={() => editingChallenge && saveChallenge(editingChallenge)}
+                      onClick={async () => {
+                        if (editingChallenge) {
+                          await saveChallenge(editingChallenge);
+                          setChallengeDialogOpen(false);
+                        }
+                      }}
                       disabled={!editingChallenge?.title || !editingChallenge?.prompt_md || !editingChallenge?.answer_pattern}
                     >
                       {editingChallenge?.id ? 'Update' : 'Create'} Challenge
@@ -1364,135 +1376,17 @@ const Admin = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="btn-cyber"
-                                    onClick={() => setEditingChallenge(challenge)}
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl">
-                                  <DialogHeader>
-                                    <DialogTitle>Edit Challenge</DialogTitle>
-                                    <DialogDescription>
-                                      Update the challenge details, prompt, and answer pattern.
-                                    </DialogDescription>
-                                  </DialogHeader>
-
-                                  <div className="space-y-4 max-h-96 overflow-y-auto">
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <Label htmlFor="edit-title">Title</Label>
-                                        <Input
-                                          id="edit-title"
-                                          value={editingChallenge?.title || ''}
-                                          onChange={(e) => setEditingChallenge(prev => prev ? { ...prev, title: e.target.value } : null)}
-                                          placeholder="Challenge title"
-                                        />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <Label htmlFor="edit-points">Points</Label>
-                                        <Input
-                                          id="edit-points"
-                                          type="number"
-                                          value={editingChallenge?.points || 100}
-                                          onChange={(e) => setEditingChallenge(prev => prev ? { ...prev, points: parseInt(e.target.value) } : null)}
-                                          placeholder="100"
-                                        />
-                                      </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <Label htmlFor="edit-order">Order Index</Label>
-                                        <Input
-                                          id="edit-order"
-                                          type="number"
-                                          value={editingChallenge?.order_index || 1}
-                                          onChange={(e) => setEditingChallenge(prev => prev ? { ...prev, order_index: parseInt(e.target.value) } : null)}
-                                          placeholder="1"
-                                        />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <Label htmlFor="edit-active">Status</Label>
-                                        <Select
-                                          value={editingChallenge?.is_active ? 'active' : 'inactive'}
-                                          onValueChange={(value) => setEditingChallenge(prev => prev ? { ...prev, is_active: value === 'active' } : null)}
-                                        >
-                                          <SelectTrigger>
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="active">Active</SelectItem>
-                                            <SelectItem value="inactive">Inactive</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-prompt">Prompt (Markdown)</Label>
-                                      <Textarea
-                                        id="edit-prompt"
-                                        value={editingChallenge?.prompt_md || ''}
-                                        onChange={(e) => setEditingChallenge(prev => prev ? { ...prev, prompt_md: e.target.value } : null)}
-                                        placeholder="Challenge description in markdown..."
-                                        rows={4}
-                                      />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-hint">Hint (Markdown, Optional)</Label>
-                                      <Textarea
-                                        id="edit-hint"
-                                        value={editingChallenge?.hint_md || ''}
-                                        onChange={(e) => setEditingChallenge(prev => prev ? { ...prev, hint_md: e.target.value } : null)}
-                                        placeholder="Hint text in markdown..."
-                                        rows={3}
-                                      />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-answer">Answer Pattern</Label>
-                                      <Input
-                                        id="edit-answer"
-                                        value={editingChallenge?.answer_pattern || ''}
-                                        onChange={(e) => setEditingChallenge(prev => prev ? { ...prev, answer_pattern: e.target.value } : null)}
-                                        placeholder="Expected answer or regex pattern"
-                                      />
-                                    </div>
-
-                                    <div className="flex items-center space-x-2">
-                                      <input
-                                        type="checkbox"
-                                        id="edit-regex"
-                                        checked={editingChallenge?.is_regex || false}
-                                        onChange={(e) => setEditingChallenge(prev => prev ? { ...prev, is_regex: e.target.checked } : null)}
-                                        className="rounded border-primary/30"
-                                      />
-                                      <Label htmlFor="edit-regex">Use regex pattern matching</Label>
-                                    </div>
-                                  </div>
-
-                                  <DialogFooter>
-                                    <Button variant="outline" onClick={() => setEditingChallenge(null)}>
-                                      Cancel
-                                    </Button>
-                                    <Button
-                                      className="btn-neon"
-                                      onClick={() => editingChallenge && saveChallenge(editingChallenge)}
-                                      disabled={!editingChallenge?.title || !editingChallenge?.prompt_md || !editingChallenge?.answer_pattern}
-                                    >
-                                      Update Challenge
-                                    </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
-
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="btn-cyber"
+                                onClick={() => {
+                                  setEditingChallenge(challenge);
+                                  setChallengeDialogOpen(true);
+                                }}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
