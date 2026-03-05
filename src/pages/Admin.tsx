@@ -1118,7 +1118,16 @@ const Admin = () => {
               <Dialog open={challengeDialogOpen} onOpenChange={setChallengeDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="btn-neon" onClick={() => {
-                    setEditingChallenge({} as Challenge);
+                    // Find the highest order_index and add 1
+                    const maxOrder = challenges.length > 0 
+                      ? Math.max(...challenges.map(c => c.order_index))
+                      : 0;
+                    setEditingChallenge({
+                      order_index: maxOrder + 1,
+                      points: 100,
+                      is_active: true,
+                      is_regex: false
+                    } as Challenge);
                     setChallengeDialogOpen(true);
                   }}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -1164,7 +1173,12 @@ const Admin = () => {
                         <Input
                           id="order"
                           type="number"
-                          value={editingChallenge?.order_index || (challenges.length + 1)}
+                          value={editingChallenge?.order_index || (() => {
+                            const maxOrder = challenges.length > 0 
+                              ? Math.max(...challenges.map(c => c.order_index))
+                              : 0;
+                            return maxOrder + 1;
+                          })()}
                           onChange={(e) => setEditingChallenge(prev => prev ? { ...prev, order_index: parseInt(e.target.value) } : null)}
                           placeholder="1"
                         />
