@@ -347,7 +347,12 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
               size="sm"
               className="btn-cyber"
             >
-              <a href={challenge.attachment_url} download={challenge.attachment_filename} target="_blank" rel="noopener noreferrer">
+              <a 
+                href={`${supabase.supabaseUrl}/functions/v1/download-challenge-file?challenge=${challenge.id}`}
+                download={challenge.attachment_filename}
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
                 Download {challenge.attachment_filename || 'File'}
               </a>
             </Button>
