@@ -15,7 +15,7 @@ const Play = () => {
   const { challenges, progress, loading, isChallengeUnlocked, getChallengeProgress, currentChallenge, refreshTrigger, calculatePoints } = useChallenges(true); // Enable auto-start on Play page
   const { profile, signOut } = useAuth();
   const { status: eventStatus, loading: statusLoading } = useEventStatus();
-  const { title, eventDatetime } = useEventInfo();
+  const { title, datetime: eventDatetime } = useEventInfo();
   const [timeUntilStart, setTimeUntilStart] = useState<string>('');
 
   const solvedCount = progress.filter(p => p.status === 'solved').length;
