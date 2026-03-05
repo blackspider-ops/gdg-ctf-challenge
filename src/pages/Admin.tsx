@@ -611,18 +611,22 @@ const Admin = () => {
       const [removed] = reordered.splice(draggedIndex, 1);
       reordered.splice(targetIndex, 0, removed);
 
-      // Update order_index for all affected challenges
-      const updates = reordered.map((challenge, index) => ({
-        id: challenge.id,
-        order_index: index + 1
-      }));
-
-      // Update in database
-      for (const update of updates) {
+      // First, set all to negative values to avoid unique constraint conflicts
+      for (let i = 0; i < reordered.length; i++) {
         const { error } = await supabase
           .from('challenges')
-          .update({ order_index: update.order_index })
-          .eq('id', update.id);
+          .update({ order_index: -(i + 1) })
+          .eq('id', reordered[i].id);
+
+        if (error) throw error;
+      }
+
+      // Then update to final positive values
+      for (let i = 0; i < reordered.length; i++) {
+        const { error } = await supabase
+          .from('challenges')
+          .update({ order_index: i + 1 })
+          .eq('id', reordered[i].id);
 
         if (error) throw error;
       }
@@ -633,11 +637,11 @@ const Admin = () => {
         title: "Success",
         description: "Challenge order updated",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error reordering challenges:', error);
       toast({
         title: "Error",
-        description: "Failed to reorder challenges",
+        description: error.message || "Failed to reorder challenges",
         variant: "destructive"
       });
     }
