@@ -29,6 +29,9 @@ interface Challenge {
   points: number
   is_active: boolean
   order_index: number
+  attachment_url?: string
+  attachment_filename?: string
+  attachment_description?: string
 }
 
 interface UserSummary {
@@ -468,6 +471,9 @@ const Admin = () => {
         if (challenge.points !== undefined) updateData.points = challenge.points;
         if (challenge.is_active !== undefined) updateData.is_active = challenge.is_active;
         if (challenge.order_index !== undefined) updateData.order_index = challenge.order_index;
+        if (challenge.attachment_url !== undefined) updateData.attachment_url = challenge.attachment_url || null;
+        if (challenge.attachment_filename !== undefined) updateData.attachment_filename = challenge.attachment_filename || null;
+        if (challenge.attachment_description !== undefined) updateData.attachment_description = challenge.attachment_description || null;
         
         console.log('Update data:', updateData);
         
@@ -494,7 +500,10 @@ const Admin = () => {
           is_regex: challenge.is_regex || false,
           points: challenge.points || 100,
           is_active: challenge.is_active !== false,
-          order_index: challenge.order_index || (challenges.length + 1)
+          order_index: challenge.order_index || (challenges.length + 1),
+          attachment_url: challenge.attachment_url || null,
+          attachment_filename: challenge.attachment_filename || null,
+          attachment_description: challenge.attachment_description || null
         };
         
         console.log('Insert data:', insertData);
@@ -1194,6 +1203,80 @@ const Admin = () => {
                         rows={3}
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="attachment">File Attachment (Optional)</Label>
+                      <Input
+                        id="attachment"
+                        type="file"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              // Upload to Supabase storage
+                              const fileExt = file.name.split('.').pop();
+                              const fileName = `challenge_${Date.now()}.${fileExt}`;
+                              
+                              const { data, error } = await supabase.storage
+                                .from('challenge-files')
+                                .upload(fileName, file);
+
+                              if (error) throw error;
+
+                              const { data: { publicUrl } } = supabase.storage
+                                .from('challenge-files')
+                                .getPublicUrl(fileName);
+
+                              setEditingChallenge(prev => prev ? {
+                                ...prev,
+                                attachment_url: publicUrl,
+                                attachment_filename: file.name
+                              } : null);
+
+                              toast({
+                                title: "Success",
+                                description: "File uploaded successfully",
+                              });
+                            } catch (error: any) {
+                              toast({
+                                title: "Upload Error",
+                                description: error.message,
+                                variant: "destructive"
+                              });
+                            }
+                          }
+                        }}
+                      />
+                      {editingChallenge?.attachment_url && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>📎 {editingChallenge.attachment_filename}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingChallenge(prev => prev ? {
+                              ...prev,
+                              attachment_url: undefined,
+                              attachment_filename: undefined,
+                              attachment_description: undefined
+                            } : null)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    {editingChallenge?.attachment_url && (
+                      <div className="space-y-2">
+                        <Label htmlFor="attachment_desc">Attachment Description (Optional)</Label>
+                        <Input
+                          id="attachment_desc"
+                          value={editingChallenge?.attachment_description || ''}
+                          onChange={(e) => setEditingChallenge(prev => prev ? { ...prev, attachment_description: e.target.value } : null)}
+                          placeholder="e.g., 'Download this file to solve the challenge'"
+                        />
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label htmlFor="answer">Answer Pattern</Label>
