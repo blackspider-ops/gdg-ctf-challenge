@@ -115,11 +115,13 @@ export const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     setLoading(true)
     
     try {
+      const redirectUrl = window.location.origin
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'azure',
         options: {
-          scopes: 'email',
-          redirectTo: `https://ctf.gdgpsu.dev/`,
+          scopes: 'email openid profile',
+          redirectTo: redirectUrl,
           queryParams: {
             prompt: 'select_account',
           }
