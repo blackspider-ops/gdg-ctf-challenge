@@ -15,10 +15,46 @@ const Play = () => {
   const { challenges, progress, loading, isChallengeUnlocked, getChallengeProgress, currentChallenge, refreshTrigger, calculatePoints } = useChallenges(true); // Enable auto-start on Play page
   const { profile, signOut } = useAuth();
   const { status: eventStatus, loading: statusLoading } = useEventStatus();
-  const { title } = useEventInfo();
+  const { title, eventDatetime } = useEventInfo();
+  const [timeUntilStart, setTimeUntilStart] = useState<string>('');
 
   const solvedCount = progress.filter(p => p.status === 'solved').length;
   const progressPercentage = challenges.length > 0 ? (solvedCount / challenges.length) * 100 : 0;
+
+  // Calculate time until event starts
+  useEffect(() => {
+    if (eventStatus === 'not_started' && eventDatetime) {
+      const updateCountdown = () => {
+        const now = new Date().getTime();
+        const eventTime = new Date(eventDatetime).getTime();
+        const distance = eventTime - now;
+
+        if (distance < 0) {
+          setTimeUntilStart('Event should start soon!');
+          return;
+        }
+
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        if (days > 0) {
+          setTimeUntilStart(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+        } else if (hours > 0) {
+          setTimeUntilStart(`${hours}h ${minutes}m ${seconds}s`);
+        } else if (minutes > 0) {
+          setTimeUntilStart(`${minutes}m ${seconds}s`);
+        } else {
+          setTimeUntilStart(`${seconds}s`);
+        }
+      };
+
+      updateCountdown();
+      const interval = setInterval(updateCountdown, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [eventStatus, eventDatetime]);
 
   if (loading || statusLoading) {
     return (
@@ -121,7 +157,31 @@ const Play = () => {
                     The competition hasn't started yet. Please check back later!
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-6">
+                  {eventDatetime && (
+                    <div className="space-y-2">
+                      <div className="text-sm text-muted-foreground">Event starts on</div>
+                      <div className="text-lg font-medium text-primary">
+                        {new Date(eventDatetime).toLocaleString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          timeZoneName: 'short'
+                        })}
+                      </div>
+                      {timeUntilStart && (
+                        <div className="mt-4 p-4 bg-gradient-to-br from-accent/10 to-primary/10 rounded-lg border border-accent/20">
+                          <div className="text-sm text-muted-foreground mb-1">Time until start</div>
+                          <div className="text-3xl font-bold text-gradient-cyber font-mono">
+                            {timeUntilStart}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="flex justify-center gap-4">
                     <Button asChild className="btn-neon">
                       <Link to="/">Return Home</Link>
