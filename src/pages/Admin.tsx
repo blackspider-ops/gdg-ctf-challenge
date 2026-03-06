@@ -148,6 +148,10 @@ const Admin = () => {
       setChallenges(challengesData || []);
 
       // Fetch user summaries and profiles separately
+      // Always get all profiles first
+      const { data: allProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role');
 
       const { data: usersData, error: usersError } = await supabase
         .from('user_summary')
@@ -156,68 +160,39 @@ const Admin = () => {
 
       if (usersError) {
         console.error('Error fetching user summary:', usersError);
-        setUsers([]);
-        calculateStats([], challengesData || []);
-      } else if (usersData && usersData.length > 0) {
-        // Get all profiles
-        const { data: allProfiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, role');
+      }
 
-        const profilesMap = {};
-        (allProfiles || []).forEach(p => {
-          profilesMap[p.id] = p;
+      // Create a map of user summaries
+      const summaryMap = {};
+      (usersData || []).forEach(user => {
+        summaryMap[user.user_id] = user;
+      });
+
+      // Combine profiles with their summaries
+      if (allProfiles && allProfiles.length > 0) {
+        const transformedUsers = allProfiles.map(profile => {
+          const summary = summaryMap[profile.id];
+          
+          return {
+            user_id: profile.id,
+            full_name: profile.full_name,
+            email: profile.email,
+            role: profile.role || 'player',
+            challenges_solved: summary?.solved_count || 0,
+            total_points: summary?.total_points || 0,
+            total_time_seconds: summary?.total_time_seconds || 0,
+            current_challenge_index: summary?.current_challenge_index || 1
+          };
         });
 
-        const transformedUsers = usersData.map(user => ({
-          user_id: user.user_id,
-          full_name: profilesMap[user.user_id]?.full_name || `User ${user.user_id.substring(0, 8)}`,
-          email: profilesMap[user.user_id]?.email || 'No email',
-          role: profilesMap[user.user_id]?.role || 'player',
-          challenges_solved: user.solved_count || 0,
-          total_points: user.total_points || 0,
-          total_time_seconds: user.total_time_seconds || 0,
-          current_challenge_index: user.current_challenge_index || 1
-        }));
+        // Sort by total points descending
+        transformedUsers.sort((a, b) => b.total_points - a.total_points);
 
         setUsers(transformedUsers);
         calculateStats(transformedUsers, challengesData || []);
       } else {
-        // No user_summary data, create from profiles with challenge progress
-        const { data: allProfiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, role');
-
-        if (allProfiles && allProfiles.length > 0) {
-          const usersWithProgress = await Promise.all(
-            allProfiles.map(async (profile) => {
-              const { data: progressData } = await supabase
-                .from('challenge_progress')
-                .select('status, duration_seconds')
-                .eq('user_id', profile.id);
-
-              const solvedCount = progressData?.filter(p => p.status === 'solved').length || 0;
-              const totalTime = progressData?.reduce((sum, p) => sum + (p.duration_seconds || 0), 0) || 0;
-
-              return {
-                user_id: profile.id,
-                full_name: profile.full_name,
-                email: profile.email,
-                role: profile.role || 'player',
-                challenges_solved: solvedCount,
-                total_points: solvedCount * 100, // Rough estimate
-                total_time_seconds: totalTime,
-                current_challenge_index: solvedCount + 1
-              };
-            })
-          );
-
-          setUsers(usersWithProgress);
-          calculateStats(usersWithProgress, challengesData || []);
-        } else {
-          setUsers([]);
-          calculateStats([], challengesData || []);
-        }
+        setUsers([]);
+        calculateStats([], challengesData || []);
       }
 
       // Fetch event settings
