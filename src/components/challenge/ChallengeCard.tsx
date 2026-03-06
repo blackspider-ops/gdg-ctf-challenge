@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 // Define types locally since they're not exported from client
 interface Challenge {
   id: number
@@ -217,23 +219,6 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
     return totalHintsUsed * 5 // Current hint number * 5
   }
 
-
-
-  const extractCodeBlocks = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/g)
-    return parts.map((part, index) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        const content = part.slice(2, -2)
-        return (
-          <code key={index} className="bg-primary/20 px-2 py-1 rounded font-mono text-primary border border-primary/30">
-            {content}
-          </code>
-        )
-      }
-      return part
-    })
-  }
-
   if (!isUnlocked) {
     return (
       <Card className="card-cyber opacity-60 max-w-full" data-challenge-id={challenge.id}>
@@ -282,8 +267,10 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
           </div>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
-          <div className="prose prose-invert max-w-none mb-4">
-            <p className="text-muted-foreground text-sm sm:text-base">{extractCodeBlocks(challenge.prompt_md)}</p>
+          <div className="prose prose-invert prose-sm max-w-none mb-4 prose-pre:bg-primary/10 prose-pre:border prose-pre:border-primary/30 prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {challenge.prompt_md}
+            </ReactMarkdown>
           </div>
           <div className="text-sm text-primary">
             ✓ Challenge completed successfully!
@@ -329,8 +316,10 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
       </CardHeader>
 
       <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
-        <div className="prose prose-invert max-w-none">
-          <p className="text-base sm:text-lg leading-relaxed">{extractCodeBlocks(challenge.prompt_md)}</p>
+        <div className="prose prose-invert max-w-none prose-pre:bg-primary/10 prose-pre:border prose-pre:border-primary/30 prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {challenge.prompt_md}
+          </ReactMarkdown>
         </div>
 
         {challenge.attachment_url && (
@@ -443,7 +432,11 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
                 Hint (-{getCurrentHintCost()} points deducted)
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">{challenge.hint_md}</p>
+            <div className="prose prose-invert prose-sm max-w-none prose-pre:bg-accent/10 prose-pre:border prose-pre:border-accent/30 prose-code:text-accent prose-code:bg-accent/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {challenge.hint_md}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
 
