@@ -360,7 +360,8 @@ const Play = () => {
           <div className="space-y-4 sm:space-y-6">
             {challenges.map((challenge, index) => {
               const challengeProgress = getChallengeProgress(challenge.id);
-              const isUnlocked = isChallengeUnlocked(challenge);
+              // Admins and owners can see all challenges unlocked
+              const isUnlocked = profile?.role === 'admin' || profile?.role === 'owner' || isChallengeUnlocked(challenge);
               const isActive = isUnlocked && challengeProgress?.status !== 'solved';
               const totalHintsUsed = progress.reduce((total, p) => total + (p.hints_used || 0), 0);
               
