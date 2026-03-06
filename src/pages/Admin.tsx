@@ -832,8 +832,11 @@ const Admin = () => {
 
   const updateUserRole = async (userId: string, newRole: 'player' | 'admin' | 'owner', userName: string) => {
     try {
+      // Check if there's already an owner
+      const hasOwner = users.some(user => user.role === 'owner');
+      
       // Additional check for owner role changes
-      if (newRole === 'owner' && !isOwner) {
+      if (newRole === 'owner' && hasOwner && !isOwner) {
         toast({
           title: "Error",
           description: "Only the current owner can transfer ownership",
@@ -1562,9 +1565,7 @@ const Admin = () => {
                               <SelectContent>
                                 <SelectItem value="player">Player</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
-                                {isOwner && (
-                                  <SelectItem value="owner">Owner</SelectItem>
-                                )}
+                                <SelectItem value="owner">Owner</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
