@@ -45,6 +45,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { Lightbulb, CheckCircle2, Lock, Timer } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useEventStatus } from '@/hooks/useEventStatus'
+import { useAuth } from '@/hooks/useAuth'
 
 interface ChallengeCardProps {
   challenge: Challenge
@@ -67,9 +68,13 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
   const { submitAnswer, startChallenge, useHint, calculatePoints, skipChallenge, progress: allProgress } = useChallenges()
   const { toast } = useToast()
   const { pauseTimers, status: eventStatus } = useEventStatus()
+  const { profile } = useAuth()
 
   // Check if user has already used their skip power-up
   const hasUsedSkip = allProgress.some(p => p.skip_used === true)
+  
+  // Check if user is admin or owner
+  const isAdminOrOwner = profile?.role === 'admin' || profile?.role === 'owner'
 
 
 
@@ -92,7 +97,14 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
   }, [progress?.hints_used, localHintsUsed])
 
   // Individual challenge timer - starts when challenge is actually started
+  // Skip timer for admin/owner users
   useEffect(() => {
+    // Skip timer for admin/owner users
+    if (isAdminOrOwner) {
+      setChallengeTimer(0)
+      return
+    }
+
     // Check if challenge has been started and is not solved
     if (progress?.started_at && progress.status && progress.status !== 'solved') {
       const originalStartTime = new Date(progress.started_at)
@@ -146,7 +158,7 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
       setEffectiveStartTime(null)
       setWasPaused(false)
     }
-  }, [progress, challenge.id, pauseTimers, eventStatus, effectiveStartTime, wasPaused, challengeTimer])
+  }, [progress, challenge.id, pauseTimers, eventStatus, effectiveStartTime, wasPaused, challengeTimer, isAdminOrOwner])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -348,7 +360,7 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
-            {isUnlocked && (progress?.status as ChallengeProgress['status']) !== 'solved' && (
+            {!isAdminOrOwner && isUnlocked && (progress?.status as ChallengeProgress['status']) !== 'solved' && (
               <Badge
                 variant="outline"
                 className={`border-primary/50 text-xs ${challengeTimer > 120
@@ -481,15 +493,15 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
               variant="outline"
               className="btn-cyber text-sm sm:text-base border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
               onClick={handleSkip}
-              disabled={skipping || hasUsedSkip}
-              title={hasUsedSkip ? 'You have already used your skip power-up' : 'Skip this challenge (one-time use)'}
+              disabled={skipping || hasUsedSkip || !isActive}
+              title={hasUsedSkip ? 'You have already used your skip power-up' : !isActive ? 'Only available for active challenges' : 'Skip this challenge (one-time use for all challenges)'}
             >
               {skipping ? 'Skipping...' : hasUsedSkip ? '⏭️ Skip Used' : '⏭️ Skip (1x)'}
             </Button>
           </div>
-          {!hasUsedSkip && (
+          {!hasUsedSkip && isActive && (
             <p className="text-xs text-muted-foreground">
-              💡 You have one skip power-up to use across all challenges. Use it wisely!
+              💡 You have one skip power-up for the entire event. Use it wisely!
             </p>
           )}
         </form>
