@@ -218,7 +218,9 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
     const currentDuration = progress.status === 'solved'
       ? (progress.duration_seconds || 0)
       : challengeTimer
-    const timePenalty = calculateLocalTimePenalty(currentDuration)
+    
+    // No time penalty for admin/owner users
+    const timePenalty = isAdminOrOwner ? 0 : calculateLocalTimePenalty(currentDuration)
 
     return Math.max(1, basePoints - incorrectPenalty - hintPenalty - timePenalty)
   }
@@ -533,7 +535,7 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
                 <strong>Hints used:</strong> {(progress?.hints_used || 0) + localHintsUsed} (-{calculateLocalHintPenalty((progress?.hints_used || 0) + localHintsUsed)} points)
               </p>
             )}
-            {(() => {
+            {!isAdminOrOwner && (() => {
               const currentDuration = progress && (progress.status as ChallengeProgress['status']) === 'solved'
                 ? (progress.duration_seconds || 0)
                 : challengeTimer
