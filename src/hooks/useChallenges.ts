@@ -28,6 +28,7 @@ interface ChallengeProgress {
   attempts: number
   incorrect_attempts: number
   hints_used: number
+  skip_used: boolean
   status: 'in_progress' | 'solved' | 'given_up'
   created_at: string
   updated_at: string
@@ -55,7 +56,8 @@ export const useChallenges = (autoStart: boolean = false) => {
     }
     
     const prevProgress = progress.find(p => p.challenge_id === prevChallenge.id)
-    const isUnlocked = prevProgress?.status === 'solved'
+    // Challenge is unlocked if previous challenge is solved OR skipped
+    const isUnlocked = prevProgress?.status === 'solved' || (prevProgress?.status === 'given_up' && prevProgress?.skip_used === true)
     
 
     
@@ -97,11 +99,11 @@ export const useChallenges = (autoStart: boolean = false) => {
 
       // Determine current challenge (first unsolved challenge)
       if (challengesData && challengesData.length > 0) {
-        const solvedChallengeIds = (progressData || [])
-          .filter(p => p.status === 'solved')
+        const solvedOrSkippedChallengeIds = (progressData || [])
+          .filter(p => p.status === 'solved' || (p.status === 'given_up' && p.skip_used === true))
           .map(p => p.challenge_id)
 
-        const nextChallenge = challengesData.find(c => !solvedChallengeIds.includes(c.id))
+        const nextChallenge = challengesData.find(c => !solvedOrSkippedChallengeIds.includes(c.id))
         setCurrentChallenge(nextChallenge || null)
 
         // Auto-start challenge 1 if it's the current challenge and hasn't been started yet
@@ -186,19 +188,19 @@ export const useChallenges = (autoStart: boolean = false) => {
       if (!challenge) return false
 
       // Check if challenge is unlocked based on solved challenges
-      const solvedChallengeIds = progress
-        .filter(p => p.status === 'solved')
+      const solvedOrSkippedChallengeIds = progress
+        .filter(p => p.status === 'solved' || (p.status === 'given_up' && p.skip_used === true))
         .map(p => p.challenge_id)
       
       // For first challenge, always unlocked
       if (challenge.order_index === 1) {
         // Allow first challenge
       } else {
-        // Check if previous challenge is solved
+        // Check if previous challenge is solved or skipped
         const prevChallenge = challenges.find(c => c.order_index === challenge.order_index - 1)
-        const isPrevSolved = prevChallenge && solvedChallengeIds.includes(prevChallenge.id)
+        const isPrevSolvedOrSkipped = prevChallenge && solvedOrSkippedChallengeIds.includes(prevChallenge.id)
         
-        if (!isPrevSolved) {
+        if (!isPrevSolvedOrSkipped) {
           toast({
             title: 'Access Denied',
             description: 'You must complete previous challenges first',
@@ -565,6 +567,104 @@ export const useChallenges = (autoStart: boolean = false) => {
     return finalPoints
   }
 
+  const skipChallenge = async (challengeId: number): Promise<boolean> => {
+    if (!user) return false
+
+    try {
+      // Check if user has already used their skip
+      const hasUsedSkip = progress.some(p => p.skip_used === true)
+      
+      if (hasUsedSkip) {
+        toast({
+          title: 'Skip Already Used',
+          description: 'You can only skip one challenge per event',
+          variant: 'destructive'
+        })
+        return false
+      }
+
+      const challenge = challenges.find(c => c.id === challengeId)
+      if (!challenge) return false
+
+      // Get current progress or start challenge
+      let currentProgress = progress.find(p => p.challenge_id === challengeId)
+      let startTime: Date
+      
+      if (!currentProgress?.started_at) {
+        startTime = new Date()
+      } else {
+        startTime = new Date(currentProgress.started_at)
+      }
+
+      // Mark challenge as given_up with skip_used flag
+      const { error } = await supabase
+        .from('challenge_progress')
+        .upsert([
+          {
+            user_id: user.id,
+            challenge_id: challengeId,
+            started_at: startTime.toISOString(),
+            status: 'given_up',
+            skip_used: true,
+            attempts: currentProgress?.attempts || 0,
+            incorrect_attempts: currentProgress?.incorrect_attempts || 0,
+            hints_used: currentProgress?.hints_used || 0
+          }
+        ], {
+          onConflict: 'user_id,challenge_id'
+        })
+
+      if (error) throw error
+
+      toast({
+        title: '⏭️ Challenge Skipped',
+        description: 'Moving to the next challenge. You cannot skip again.',
+        duration: 3000,
+      })
+
+      // Update current challenge to next unsolved challenge
+      const nextChallenge = challenges.find(c => c.order_index === challenge.order_index + 1)
+      setCurrentChallenge(nextChallenge || null)
+
+      // Auto-start the next challenge
+      if (nextChallenge) {
+        const nextStartTime = new Date()
+        const { error: nextError } = await supabase
+          .from('challenge_progress')
+          .insert([
+            {
+              user_id: user.id,
+              challenge_id: nextChallenge.id,
+              started_at: nextStartTime.toISOString(),
+              status: 'in_progress'
+            }
+          ])
+
+        if (!nextError) {
+          toast({
+            title: '🚀 Next Challenge Started!',
+            description: `Challenge ${nextChallenge.order_index}: ${nextChallenge.title}`,
+            duration: 2000,
+          })
+        }
+      }
+
+      // Refresh data
+      await fetchChallengesAndProgress()
+      setRefreshTrigger(prev => prev + 1)
+      
+      return true
+    } catch (error) {
+      console.error('Error skipping challenge:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to skip challenge',
+        variant: 'destructive'
+      })
+      return false
+    }
+  }
+
   return {
     challenges,
     progress,
@@ -576,6 +676,7 @@ export const useChallenges = (autoStart: boolean = false) => {
     isChallengeUnlocked,
     useHint,
     calculatePoints,
+    skipChallenge,
     refetch: fetchChallengesAndProgress,
     refreshTrigger
   }

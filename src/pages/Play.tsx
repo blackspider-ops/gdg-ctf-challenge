@@ -91,8 +91,8 @@ const Play = () => {
 
 
 
-  // STAGE 3: Event is ENDED - Show ended message
-  if (eventStatus === 'ended') {
+  // STAGE 3: Event is ENDED - Show ended message (unless admin/owner)
+  if (eventStatus === 'ended' && profile?.role !== 'admin' && profile?.role !== 'owner') {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-background">
@@ -143,8 +143,8 @@ const Play = () => {
     );
   }
 
-  // STAGE 0: Event not started - Show waiting message
-  if (eventStatus === 'not_started') {
+  // STAGE 0: Event not started - Show waiting message (unless admin/owner)
+  if (eventStatus === 'not_started' && profile?.role !== 'admin' && profile?.role !== 'owner') {
     return (
       <AuthGuard>
         <div className="min-h-screen bg-background">
@@ -249,9 +249,20 @@ const Play = () => {
   }
 
   // STAGE 1: Event is LIVE - Show the normal quiz interface
+  // Admins and owners can always access this view
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background overflow-x-hidden max-w-full">
+        {/* Admin/Owner Banner */}
+        {(profile?.role === 'admin' || profile?.role === 'owner') && eventStatus !== 'live' && (
+        <div className="bg-primary/20 border-b border-primary/30 p-4 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-primary font-medium">
+              {profile.role === 'owner' ? '👑 Owner' : '🛡️ Admin'} View - Event Status: {eventStatus}
+            </span>
+          </div>
+        </div>
+      )}
         {/* Paused Banner */}
         {eventStatus === 'paused' && (
         <div className="bg-accent/20 border-b border-accent/30 p-4 text-center">
@@ -329,17 +340,29 @@ const Play = () => {
           {/* Challenge Steps */}
           <div className="flex justify-center mb-6 sm:mb-8 overflow-x-auto pb-2">
             <div className="flex items-center gap-2 sm:gap-4 min-w-max px-4">
-              {challenges.map((_, index) => (
+              {challenges.map((challenge, index) => {
+                const challengeProgress = getChallengeProgress(challenge.id);
+                const isSkipped = challengeProgress?.status === 'given_up' && challengeProgress?.skip_used;
+                const isSolved = challengeProgress?.status === 'solved';
+                const isCompleted = isSolved || isSkipped;
+                
+                return (
                 <div key={index} className="flex items-center">
                   <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center border-2 ${
                     index < (currentChallenge?.order_index || 1) - 1 
-                      ? 'bg-primary border-primary text-background' 
+                      ? isSkipped 
+                        ? 'bg-orange-500/20 border-orange-500 text-orange-400'
+                        : 'bg-primary border-primary text-background'
                       : index === (currentChallenge?.order_index || 1) - 1 
                         ? 'border-primary text-primary bg-primary/10' 
                         : 'border-muted text-muted-foreground'
                   }`}>
                     {index < (currentChallenge?.order_index || 1) - 1 ? (
-                      <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                      isSkipped ? (
+                        <span className="text-xs sm:text-sm">⏭️</span>
+                      ) : (
+                        <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                      )
                     ) : index === (currentChallenge?.order_index || 1) - 1 ? (
                       <span className="text-xs sm:text-sm font-bold">{index + 1}</span>
                     ) : (
@@ -352,7 +375,7 @@ const Play = () => {
                     }`} />
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           </div>
 
@@ -362,7 +385,7 @@ const Play = () => {
               const challengeProgress = getChallengeProgress(challenge.id);
               // Admins and owners can see all challenges unlocked
               const isUnlocked = profile?.role === 'admin' || profile?.role === 'owner' || isChallengeUnlocked(challenge);
-              const isActive = isUnlocked && challengeProgress?.status !== 'solved';
+              const isActive = isUnlocked && challengeProgress?.status !== 'solved' && !(challengeProgress?.status === 'given_up' && challengeProgress?.skip_used);
               const totalHintsUsed = progress.reduce((total, p) => total + (p.hints_used || 0), 0);
               
               return (

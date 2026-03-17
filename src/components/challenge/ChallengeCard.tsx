@@ -34,6 +34,7 @@ interface ChallengeProgress {
   attempts: number
   incorrect_attempts: number
   hints_used: number
+  skip_used: boolean
   status: 'in_progress' | 'solved' | 'given_up'
   created_at: string
   updated_at: string
@@ -57,14 +58,18 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
   const [answer, setAnswer] = useState('')
   const [showHint, setShowHint] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [skipping, setSkipping] = useState(false)
   const [challengeTimer, setChallengeTimer] = useState(0)
   const [hintUnlocked, setHintUnlocked] = useState(false)
   const [localHintsUsed, setLocalHintsUsed] = useState(0)
   const [effectiveStartTime, setEffectiveStartTime] = useState<Date | null>(null)
   const [wasPaused, setWasPaused] = useState(false)
-  const { submitAnswer, startChallenge, useHint, calculatePoints } = useChallenges()
+  const { submitAnswer, startChallenge, useHint, calculatePoints, skipChallenge, progress: allProgress } = useChallenges()
   const { toast } = useToast()
   const { pauseTimers, status: eventStatus } = useEventStatus()
+
+  // Check if user has already used their skip power-up
+  const hasUsedSkip = allProgress.some(p => p.skip_used === true)
 
 
 
@@ -219,6 +224,21 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
     return totalHintsUsed * 5 // Current hint number * 5
   }
 
+  const handleSkip = async () => {
+    if (hasUsedSkip) {
+      toast({
+        title: 'Skip Already Used',
+        description: 'You can only skip one challenge per event',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    setSkipping(true)
+    await skipChallenge(challenge.id)
+    setSkipping(false)
+  }
+
   if (!isUnlocked) {
     return (
       <Card className="card-cyber opacity-60 max-w-full" data-challenge-id={challenge.id}>
@@ -240,6 +260,41 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
             </Badge>
           </div>
         </CardHeader>
+      </Card>
+    )
+  }
+
+  if (progress?.status === 'given_up' && progress?.skip_used) {
+    return (
+      <Card className="card-cyber border-orange-500/50 bg-orange-500/5 max-w-full" data-challenge-id={challenge.id}>
+        <CardHeader className="px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⏭️</span>
+              <div>
+                <CardTitle className="text-orange-400 text-base sm:text-lg">
+                  Challenge {challenge.order_index}: {challenge.title}
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Skipped using power-up
+                </CardDescription>
+              </div>
+            </div>
+            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/50 self-start sm:self-center">
+              Skipped
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 sm:px-6">
+          <div className="prose prose-invert prose-sm max-w-none mb-4 prose-pre:bg-primary/10 prose-pre:border prose-pre:border-primary/30 prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {challenge.prompt_md}
+            </ReactMarkdown>
+          </div>
+          <div className="text-sm text-orange-400">
+            ⏭️ You skipped this challenge and moved to the next one.
+          </div>
+        </CardContent>
       </Card>
     )
   }
@@ -421,7 +476,22 @@ export const ChallengeCard = ({ challenge, progress, isUnlocked, isActive, total
                 }
               </Button>
             )}
+            <Button
+              type="button"
+              variant="outline"
+              className="btn-cyber text-sm sm:text-base border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+              onClick={handleSkip}
+              disabled={skipping || hasUsedSkip}
+              title={hasUsedSkip ? 'You have already used your skip power-up' : 'Skip this challenge (one-time use)'}
+            >
+              {skipping ? 'Skipping...' : hasUsedSkip ? '⏭️ Skip Used' : '⏭️ Skip (1x)'}
+            </Button>
           </div>
+          {!hasUsedSkip && (
+            <p className="text-xs text-muted-foreground">
+              💡 You have one skip power-up to use across all challenges. Use it wisely!
+            </p>
+          )}
         </form>
 
         {showHint && hintUnlocked && challenge.hint_md && (
